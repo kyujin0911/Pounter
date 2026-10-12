@@ -93,3 +93,13 @@
 - 결정: Gradle 프로젝트명·앱 표시 이름 Pounter, 기본 패키지·namespace·applicationId는 io.github.kyujin0911.pounter. 소스 폴더는 이미 사용자에 의해 Pounter로 이동됨.
 - 적용: main/test/androidTest 패키지와 import, 테마·앱 이름 리소스, Room 스키마 경로를 함께 변경. DB 버전·테이블·identityHash는 유지. 기존 이력의 패키지명/명령은 당시 증거로 보존.
 - 경계: 새 앱 ID는 별도 설치 앱으로 식별. 이전 앱 데이터 자동 이전·제거·초기화는 수행하지 않음. 자동 검출 구현·실험·원격 push는 이번 범위 밖.
+
+## D-13 Git 운영 규칙과 템플릿
+
+- 날짜/상태: 2026-10-12 / 사용자 요청에 따라 규칙·템플릿 채택.
+- 현재 읽기 확인: main db5490e, 저장된 origin/main과 차이 0/0, origin kyujin0911/Pounter 등록. 작업 트리 깨끗함. 원격 서버 조회·기본 브랜치/보호 설정 확인은 하지 않음. 이전 D-08의 main/원격 없음은 당시 사실로 보존.
+- 기존 메시지: docs 접두사를 쓴 문서 커밋 외에 영문 자유 형식 제목이 있음. 기존 이력은 재작성하지 않고 앞으로 영어 type/scope + 한국어 설명의 Conventional Commits를 사용. 프로젝트 문서 언어와 일관성을 유지하기 위한 선택.
+- 전략: GitHub Flow 유지. origin/main 변경은 merge로 가져와 공유 이력 재작성과 force push를 피함. 최종 main 반영은 PR 단위 Squash merge로 목적을 명확하게 남기며 이후 작업은 새 브랜치에서 시작.
+- 단일 기준: [Git 운영 규칙](git_workflow.md). .gitmessage는 선택 로컬 적용, PR 템플릿은 기본 브랜치 반영 후 사용 확인. 원격/로컬 설정은 이번에 적용하지 않음.
+- 로컬 CI·PR 템플릿 없음 확인 후 템플릿만 추가. hooks/commitlint/Husky/이슈 템플릿/새 CI는 작은 개인 프로젝트의 현재 필요성이 부족해 미도입. 보호 규칙은 권고이며 실제 설정 상태가 아님.
+- 실행 범위: codex/git-workflow 생성·문서/템플릿 검토·이번 파일만 로컬 커밋. 앱 빌드·기기 검증·push·PR 생성·병합·GitHub 설정 변경 없음.

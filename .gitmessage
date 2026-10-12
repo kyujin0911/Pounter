@@ -1,0 +1,10 @@
+# 첫 줄에 작성: type(scope): 한국어 변경 설명
+# scope 선택, type/scope는 소문자 영어. 제목은 구체적으로, 가능하면 72자 이내.
+# type: feat / fix / refactor / docs / test / build / chore (되돌림은 revert)
+# 예시일 뿐 실제 결과 아님: fix(count): 저장 실패한 보정을 유지하고 재시도
+#
+# 필요할 때만 빈 줄 뒤 본문: 이유·영향·호환성·한계. 단순 변경은 제목만.
+# 검증을 적으면 이번 변경에서 실제 수행한 방법·결과만. 미실행은 이유와 구분.
+# 실제 이슈가 있으면 Refs: #번호. 해결 범위가 맞을 때만 Closes: #번호.
+# ! / BREAKING CHANGE:는 실제 소비자 호환성 파괴와 전환 설명이 있을 때만.
+# 안내/placeholder는 메시지로 커밋하지 말 것. 상세: docs/git_workflow.md

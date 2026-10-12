@@ -1,6 +1,6 @@
 # Pounter — 파이프 계수 Android 체험 앱
 
-현재 작업은 사용자 승인에 따른 기존 코드 재사용·Jetpack Navigation 화면 분리다. 최신 요구사항은 [PRD](PRD.md), 채택된 비AI 검출은 [자동 계수 설계](docs/auto_counting.md), 화면은 [디자인 명세](docs/design_spec.md)를 따른다. 현재 수동 표시 흐름을 세 목적지로 분리했다. 자동 계수 MVP는 아직 완료하지 않았다. 추가 구현은 실제 요청 범위를 따른다.
+사진 검수 흐름은 기존 코드 재사용·Jetpack Navigation 화면 분리로 구성되어 있다. 최신 요구사항은 [PRD](PRD.md), 채택된 비AI 검출은 [자동 계수 설계](docs/auto_counting.md), 화면은 [디자인 명세](docs/design_spec.md)를 따른다. 현재 수동 표시 흐름을 세 목적지로 분리했다. 자동 계수 MVP는 아직 완료하지 않았다. 추가 구현은 실제 요청 범위를 따른다.
 
 Kotlin / Jetpack Compose / Room / 화면 단위 MVI로 만든 오프라인 사진 검수 앱입니다.
 
@@ -37,6 +37,10 @@ Android Studio에서 이 폴더를 열고 Gradle Sync 후 `app`을 실행합니�
 - 사진 좌표는 정규화해 확대·이동과 무관하게 저장합니다. 확정 기록은 읽기 전용이며 변경은 revision 검사로 보호합니다.
 - [제품 요구사항](PRD.md), [작업 지침](AGENTS.md), [결정 기록](docs/decision_log.md), [환경](docs/environment.md), [검증](docs/verification.md).
 
-로컬 현장 사진·분석 오버레이는 Git에 포함하지 않습니다. 원격 push·PR·병합·배포는 수행하지 않습니다.
+로컬 현장 사진·분석 오버레이는 Git에 포함하지 않습니다. 원격 push·PR·병합·배포는 해당 사용자 요청 범위에서 수행합니다.
 
 앱/Gradle 프로젝트 이름: `Pounter`. namespace/applicationId/기본 패키지: `io.github.kyujin0911.pounter`. 앱 ID 변경 전 설치 앱의 기록은 자동 이전되지 않으며 기존 설치·데이터를 삭제하지 않는다.
+
+## 개발 협업·Git
+
+[Git 운영 규칙](docs/git_workflow.md)에서 브랜치·커밋·PR·병합 흐름을 확인합니다. [PR 템플릿](.github/pull_request_template.md)과 [커밋 템플릿](.gitmessage)을 사용하며, commit.template 로컬 적용은 운영 문서의 선택 명령을 따릅니다.
