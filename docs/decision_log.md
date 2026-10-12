@@ -111,3 +111,16 @@
 - 기준: 목적/증상·범위·완료 조건·검증 계획, 실제 환경/재현과 가설 구분. 독립 목적 분리·선행 관계·최종 PR 완료 조건으로 종료. 상세는 Git 운영 규칙.
 - 적용 범위: 이번 문서/템플릿만 검증 후 PR·Squash merge로 기본 브랜치에 반영하는 즉시 적용 요청. 기존 앱/외부 Skill/기존 커밋은 수정하지 않으며 실제 작업 Issue를 만들지 않음.
 - 적용 결과는 완료 보고의 PR/기본 브랜치 확인으로 구분하며 작성 자체를 GitHub UI 확인으로 보고하지 않음.
+
+## D-15 화면 책임·패키지·명명·포맷 정리
+
+- 날짜/상태: 2026-10-12 / 사용자 구현 요청 및 기술 선택.
+- 사용자 승인: 기존 코드·관련 문서·포맷 설정·Issue·작업 브랜치·검증·로컬 커밋. Koin·자동 검출 구현/실험·push·PR/병합 제외.
+- 기준: 확인한 main e30d20c. 사용자 미추적 파일은 보존·미스테이징. 기존 이력/미병합 브랜치는 변경하지 않는다.
+- Issue: 최초 생성은 연결 앱 403으로 실패했으나 사용자 재개 요청 후 재시도 성공: [#1](https://github.com/kyujin0911/Pounter/issues/1). 번호 없는 임시 브랜치를 codex/1-code-structure로 변경. 원격 쓰기는 승인된 Issue 생성만 수행.
+- 책임 선택: Home 목록 구독, Count 편집·취소·저장 복구, Record 읽기 전용 조회·삭제. 독립 작업/수명 때문에 분리했으며 기존 모든 화면 CountViewModel 사용을 대체한다. 공유 데이터 처리는 Repository 유지.
+- 공유 선택: 사진 UI는 domain 데이터·callback만 받으며 PhotoGeometry를 가까이 배치. PhotoImportHandler 클래스는 재사용하되 ViewModel별 SavedStateHandle/scope로 별도 인스턴스. 공통 Store/BaseViewModel·DTO 복제·새 DI 없음.
+- 호환: applicationId·DB v1·기록 JSON/key/컬럼 동일. Room 클래스 이동은 스키마 파일 경로 이동이며 내용 동일. Route @SerialName과 entry VM 저장 key로 이전 복원 이름을 유지. 데이터 초기화 없음.
+- 포맷: 기존 포맷 도구가 없어 Spotless 7.0.4를 Gradle 실행기로, ktfmt 0.54 KotlinlangStyle을 단일 포맷 엔진으로 채택. 기존 Gradle8.13/Java17에서 검증. .editorconfig와 기준 일치. 전체 앱 의존성 업그레이드·별도 ktlint/hook 없음.
+- 단일 기준: [코드 컨벤션](code_conventions.md). 네이밍 문서만 있던 상태를 실제 코드·테스트 적용으로 갱신. 포맷, 구조/명명, 공유 표시 삭제 회귀 검증, 문서를 목적별 로컬 커밋으로 구분. 기존 CodeRabbit UI 경로·참조 문서도 새 구조에 맞춤(원격 적용 미검증).
+- 검증·미검증: [검증 이력](verification.md)의 이번 실행만 사용한다. 패키지 경계를 자동 강제하거나 S22+ 실기기·현장 성능을 검증했다고 보고하지 않는다. Koin은 다음 별도 승인 작업.

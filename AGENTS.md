@@ -2,7 +2,7 @@
 
 ## 실행 범위와 판단 기준
 
-현재 작업(2026-10-12)은 변수 네이밍 규칙 문서화와 후속 구조·컨벤션 작업 범위 반영이다. 이번 문서만 검토·로컬 커밋하며 앱 코드·실제 변수명·Koin·원격 작업은 변경하지 않는다. 다음 작업은 실제 사용자 요청 범위를 따른다.
+현재 작업(2026-10-12)은 Issue #1의 파일·책임·패키지·명명·포맷 정리다. 사용자 승인 범위는 관련 코드·문서·포맷 설정·Issue/작업 브랜치·관련 검증·로컬 커밋까지다. Koin·자동 검출 구현/실험·원격 push·PR 생성/병합은 제외한다. 이후 작업은 실제 사용자 요청 범위를 따른다.
 
 핵심 흐름 완성 > 기능 수, 사용성·정보 전달 > 장식. 구조를 단순하게 유지하고 플랫폼 기능을 우선한다. 데이터를 잃거나 기대값을 약화해 검증을 통과시키지 않는다. 사용자 진술·인터뷰 정정·사진 관찰·공식 설명·추정·실험·성과를 구분한다.
 
@@ -11,7 +11,7 @@
 - [PRD](PRD.md): 최신 사용자 결정·지원 범위·흐름·인수 기준·미결정 입력의 단일 기준.
 - [자동 계수 설계](docs/auto_counting.md): 채택한 비AI 검출 접근과 기술 가정·검증 절차.
 - [디자인·화면 명세](docs/design_spec.md): 공개 레퍼런스의 확인 범위, 화면 상태·디자인 초안.
-- [코드 컨벤션](docs/code_conventions.md): 변수 네이밍과 후속 구조 정리의 적용 기준.
+- [코드 컨벤션](docs/code_conventions.md): 파일·책임·패키지·명명·포맷팅의 단일 기준.
 - [Git 운영 규칙](docs/git_workflow.md): 브랜치·커밋·PR·병합 정책의 단일 기준.
 - [결정 기록](docs/decision_log.md): 날짜·상태·대체 관계·선택 이유. 폐기된 제안을 활성 요구사항으로 재사용하지 않음.
 - [환경 기록](docs/environment.md), [검증 이력](docs/verification.md): 확인 시점의 사실. 최신 요구사항이나 새 실행 결과를 대신하지 않음.
@@ -22,7 +22,7 @@
 
 [코드 컨벤션](docs/code_conventions.md)을 따른다. 내부 화면 상태는 _uiState, 공개 읽기 전용 상태는 uiState. Job·저장 단계·토큰·ID·단위·좌표계가 역할을 드러내게 한다. 모든 private 변수에 _를 붙이지 않는다. 영속 JSON/key/컬럼·Navigation 인자를 이름 정리로 임의 변경하지 않는다.
 
-다음 구조·컨벤션 정리 Issue의 범위와 완료 조건에 네이밍 검토·호출부 정리·동작 보존 검증을 포함한다. Koin 후속 작업도 같은 규칙을 따른다. 이 문서 갱신은 구현이나 원격 작업 허가가 아니다.
+화면/주요 ViewModel·Action·UiState는 이름에 맞는 파일, feature/home/count/record에 둔다. 공유 사진 UI는 데이터·callback을 받고 특정 화면 상태/dispatcher를 참조하지 않는다. data/core는 feature/navigation/di에 의존하지 않으며 빈 패키지·Base·불필요한 DTO를 만들지 않는다. 세부 배치/명명은 코드 컨벤션 참조. Koin 후속 작업도 같은 규칙을 따른다.
 
 ## Android·MVI 제약
 
@@ -44,9 +44,9 @@ Navigation Compose의 타입 안전 경로로 목록·계수 작업·확정 기�
 
 ## Git 전략
 
-상세 기준은 [Git 운영 규칙](docs/git_workflow.md). GitHub Flow의 main + codex/ 목적 브랜치를 사용한다. 시작 시 main과 저장된 origin/main은 db5490e로 같았고 origin 등록이 존재했다. 원격 서버 최신 상태·보호 설정은 조회하지 않았다. 기존 D-08의 'main/원격 없음'은 당시 사실이며 이후 상태는 [D-13](docs/decision_log.md#d-13-git-운영-규칙과-템플릿)을 따른다.
+상세 기준은 [Git 운영 규칙](docs/git_workflow.md). GitHub Flow의 main + codex/ 목적 브랜치를 사용한다. Git 운영 규칙 작성 당시 main과 저장된 origin/main은 db5490e로 같았고 origin 등록이 존재했다. 이번 구조 작업 기준은 e30d20c다. 원격 서버 최신 상태·보호 설정은 조회하지 않았다. 기존 D-08의 'main/원격 없음'은 당시 사실이며 이후 상태는 [D-13](docs/decision_log.md#d-13-git-운영-규칙과-템플릿)을 따른다.
 
-- 같은 목적의 미병합 브랜치는 재사용, 완료된 브랜치는 최신 main에서 새 작업으로 시작한다. Issue 템플릿 작업 이후 이번 네이밍 문서는 codex/naming-conventions에서 로컬 커밋한다.
+- 같은 목적의 미병합 브랜치는 재사용, 완료된 브랜치는 최신 main에서 새 작업으로 시작한다. 이번 작업은 확인한 main e30d20c에서 codex/1-code-structure로 시작했다. Issue #1 생성 성공과 과거 권한 실패를 구분한다.
 - Issue는 동일 작업을 먼저 확인하고 목적·범위·완료 조건·검증 계획을 기록한다. 선행 관계를 연결하며 Issue 생성만으로 구현/원격 작업을 허가받은 것으로 간주하지 않는다. 상세는 Git 운영 규칙과 두 Issue 템플릿 참조.
 - 영어 type/scope + 한국어 설명의 Conventional Commits. 구체적 변경·실제 검증만 기록한다. 기존 이력을 컨벤션에 맞춰 재작성하지 않는다.
 - 변경→관련 검증→diff 리뷰→이번 파일만 스테이징→로컬 커밋. 사용자 변경·사진·개인 경로·비밀값을 포함하지 않는다.
@@ -60,14 +60,16 @@ Navigation Compose의 타입 안전 경로로 목록·계수 작업·확정 기�
 구현을 요청받은 이후 관련 검증:
 
 ```sh
-./gradlew assembleDebug testDebugUnitTest lintDebug
+./gradlew spotlessCheck assembleDebug testDebugUnitTest lintDebug
 ./gradlew connectedDebugAndroidTest
 ```
 
 ## Jetpack Compose
 For all Compose/Android UI tasks, follow the instructions in
-`skills/compose-expert/SKILL.md` and consult the reference
-files in `skills/compose-expert/references/` before answering.
+`.compose-skill/skills/compose-expert/SKILL.md` and consult the reference
+files in `.compose-skill/skills/compose-expert/references/` before answering.
+
+자동 검출 실험이 제외된 요청에서는 connectedDebugAndroidTest 전체 실행 대신 허용된 테스트 클래스/메서드 목록을 명시해 Hough 프로토타입을 실행하지 않는다.
 
 검출은 PRD의 독립 실사진·정답 위치·대표 실기기로 평가한다. 첫 분석/반복 분석과 전체 검수 시간을 구분한다. 회전/Activity 재생성, OS 프로세스 종료, 강제 종료 재실행을 서로 대신한 검증으로 보고하지 않는다. 미확인 항목은 최소 확인 절차와 함께 남긴다.
 
