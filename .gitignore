@@ -1,10 +1,62 @@
+# Gradle/Kotlin caches and generated build outputs (all modules)
 .gradle/
 .kotlin/
 **/build/
+/out/
+
+# Android SDK paths and machine-specific IDE settings
 local.properties
-.venv/
 .idea/
 *.iml
+.externalNativeBuild/
+.cxx/
+
+# App packages, profiling dumps, and generated logs
+*.apk
+*.aab
+*.apks
+*.hprof
+*.log
+
+# Signing keys and local credentials; never store passwords in tracked Gradle files
+*.jks
+*.keystore
+*.p12
+*.pfx
+keystore.properties
+signing.properties
+secrets.properties
+.env
+.env.*
+!.env.example
+!.env.sample
+# Example env files must contain placeholders only.
+
+# Private field photos, overlays, device screenshots, and local app data
+# Keep these in dedicated local directories; do not ignore every PNG/JPG/JSON.
 captures/
-docs/local-validation/
+/photos/
+/qa/
+/screenshots/
+/local-data/
+/docs/local-validation/
+
+# Local Python detector investigation environment/cache (script source is shared)
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# macOS metadata and editor temporary/merge files
 .DS_Store
+._*
+*.swp
+*.swo
+*~
+*.orig
+*.rej
+
+# Keep source/resources/tests, project docs, Gradle build files/properties,
+# gradlew/gradlew.bat, gradle/wrapper/* (including the JAR), and app/schemas/*.
+# .gitignore does not remove tracked files or secrets in existing commits.
