@@ -74,3 +74,17 @@ files in `.compose-skill/skills/compose-expert/references/` before answering.
 검출은 PRD의 독립 실사진·정답 위치·대표 실기기로 평가한다. 첫 분석/반복 분석과 전체 검수 시간을 구분한다. 회전/Activity 재생성, OS 프로세스 종료, 강제 종료 재실행을 서로 대신한 검증으로 보고하지 않는다. 미확인 항목은 최소 확인 절차와 함께 남긴다.
 
 기존 빌드 설정은 환경 기록을 참고하고 필요한 시점에 가볍게 확인한다. 정상 설정을 반복 요구하지 않는다. 인증·권한·대상 변경이나 실제 오류가 있을 때만 재설정 안내. 이미지·오버레이·개인 경로·비밀값은 커밋하지 않는다. 선택 도구 연결은 전체 작업의 필수 선행 조건으로 만들지 않는다.
+
+## graphify
+
+This project has a knowledge graph at graphify-out/ with god nodes, community structure, and cross-file relationships.
+
+When the user types `/graphify`, use the installed graphify skill or instructions before doing anything else.
+
+Rules:
+- For codebase questions, first run `graphify query "<question>"` when graphify-out/graph.json exists. Use `graphify path "<A>" "<B>"` for relationships and `graphify explain "<concept>"` for focused concepts. These return a scoped subgraph, usually much smaller than GRAPH_REPORT.md or raw grep output.
+- Dirty graphify-out/ files are expected after hooks or incremental updates; dirty graph files are not a reason to skip graphify. Only skip graphify if the task is about stale or incorrect graph output, or the user explicitly says not to use it.
+- If graphify-out/wiki/index.md exists, use it for broad navigation instead of raw source browsing.
+- Read graphify-out/GRAPH_REPORT.md only for broad architecture review or when query/path/explain do not surface enough context.
+- After modifying code, run `graphify update .` to keep the graph current (AST-only, no API cost).
+- A committed graphify-out/graph.json is rewritten whole on every build, so a large diff to it in a pull request is expected. Do not flag it as churn or suggest skipping the graph rebuild or its hooks.
