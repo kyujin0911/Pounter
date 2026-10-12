@@ -48,8 +48,13 @@ class CountViewModel(
                         )
                     }
                     val restoredPendingTask =
-                        savedStateHandle.get<String>("pendingSave")?.let {
-                            Json.decodeFromString<CountTask>(it)
+                        savedStateHandle.get<String>("pendingSave")?.let { encoded ->
+                            runCatching { Json.decodeFromString<CountTask>(encoded) }
+                                .onFailure {
+                                    savedStateHandle["pendingSave"] = null
+                                    _uiState.update { it.copy(message = "저장되지 않은 변경을 복원하지 못했습니다.") }
+                                }
+                                .getOrNull()
                         }
                     if (task != null && restoredPendingTask?.id == task.id) {
                         val alreadyStored =

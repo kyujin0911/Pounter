@@ -55,6 +55,7 @@ class CountViewModelTest {
         var saveCount = 0
         var hasDeleteFailure = false
         var hasPreviewFailure = false
+        var previewedTask: CountTask? = null
         var importedTask: CountTask? = null
         var analysisResultGate: CompletableDeferred<Detection>? = null
         var saveGate: CompletableDeferred<Unit>? = null
@@ -62,6 +63,7 @@ class CountViewModelTest {
         override suspend fun get(id: String) = storedTask.takeIf { it.id == id }
 
         override suspend fun preview(task: CountTask): Bitmap? {
+            previewedTask = task
             if (hasPreviewFailure) error("사진 읽기 실패")
             return null
         }
@@ -211,6 +213,32 @@ class CountViewModelTest {
             assertEquals(countRepository.storedTask, viewModel.uiState.value.task)
             assertFalse(viewModel.uiState.value.unavailable)
             assertEquals("사진 읽기 실패", viewModel.uiState.value.message)
+        }
+
+    @Test
+    fun incompatiblePendingSaveKeepsPersistedTaskPreviewAndClearsFailedRestore() =
+        runTest(dispatcher) {
+            val countRepository = FakeRepository()
+            countRepository.storedTask =
+                countRepository.storedTask.edit(listOf(Marker("m", .5f, .5f, .02f, true)))
+            val savedStateHandle =
+                SavedStateHandle(mapOf("taskId" to "task", "pendingSave" to """{"id":"task"}"""))
+            val viewModel = CountViewModel(countRepository, savedStateHandle)
+            runCurrent()
+
+            assertEquals(countRepository.storedTask, countRepository.previewedTask)
+            assertEquals(countRepository.storedTask, viewModel.uiState.value.task)
+            assertEquals("저장되지 않은 변경을 복원하지 못했습니다.", viewModel.uiState.value.message)
+            assertNull(savedStateHandle.get<String>("pendingSave"))
+            assertFalse(viewModel.uiState.value.unsavedChanges)
+            assertEquals(Operation.NONE, viewModel.uiState.value.operation)
+            assertEquals(0, countRepository.saveCount)
+
+            countRepository.previewedTask = null
+            val reopened = CountViewModel(countRepository, savedStateHandle)
+            runCurrent()
+            assertEquals(countRepository.storedTask, countRepository.previewedTask)
+            assertNull(reopened.uiState.value.message)
         }
 
     @Test
