@@ -1,0 +1,154 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+# 설정 설명·적용 확인: docs/coderabbit.md
+language: ko-KR
+tone_instructions: "Android 시니어 개발자 관점에서 간결하게 리뷰한다. 문제의 발생 조건, 사용자 영향, 코드 근거와 최소 수정안을 함께 제시한다. 추정은 추정으로 표시하고 취향 중심 지적과 같은 원인의 중복 댓글을 줄인다."
+
+reviews:
+  profile: chill
+  poem: false
+  path_instructions:
+    - path: "**/*"
+      instructions: |
+        Pounter는 오프라인 사진 기반 파이프 계수 Kotlin/Compose Android 앱이다.
+        관련 PRD.md, AGENTS.md, docs/auto_counting.md, docs/design_spec.md를 확인한다.
+        최신 명시적 사용자 정정과 PRD를 우선한다. 결정 기록의 폐기·대체 제안,
+        문서의 과거 요청 범위와 검증 스냅샷을 영구적인 제품 제약으로 적용하지 않는다.
+        변경과 그 호출·저장·복원 경로를 추적해 새로 생기거나 악화된 문제를 우선한다.
+        기존 결함은 이번 변경과의 연관을 설명하고 무관한 전체 재설계를 요구하지 않는다.
+        우선순위는 데이터 유실/오확정/크래시, 상태·취소·복원 오류, 계수·좌표 오류,
+        접근성·성능 순이다. 스타일·이름·형식 취향만으로 변경을 요구하지 않는다.
+        지적에는 발생 조건 → 사용자 영향 → 위치/코드 근거 → 최소 수정과 검증을 적는다.
+        호출 경로·테스트·문서가 뒷받침하지 않는 결함이나 성능 수치는 단정하지 않는다.
+        작은 단일 앱 모듈을 유지한다. 기존 책임 분리·표준 API·설치된 의존성을 우선한다.
+        UseCase, DI/MVI 프레임워크, 별도 Store, 다중 모듈, WorkManager, 캐시는
+        구체적 복잡도·수명·성능 문제가 있을 때만 제안한다. 기존 Repository/PipeDetector
+        인터페이스의 테스트 대역·책임 경계는 구현체 개수만으로 제거하지 않는다.
+        테스트를 통과시키려고 기대값을 약화하거나 데이터·검사를 제거하지 않는다.
+        사진·오버레이·개인 경로·키·민감 로그를 저장소나 PR에 추가하지 않는다.
+
+    - path: "app/src/main/**/*.kt"
+      instructions: |
+        UI는 Action을 전달하고 화면 ViewModel은 읽기 전용 StateFlow<UiState>를 노출한다.
+        Compose는 collectAsStateWithLifecycle로 수집한다. 불변 상태와 SSOT/UDF를 유지하고
+        파일·DB·검출 부수 효과는 Repository와 검출 구현에 둔다. 생성자 주입을 기본으로 한다.
+        Activity, NavController, UI 수명 Context를 ViewModel에 보관하지 않는다.
+        코루틴은 소유자의 수명과 연결하고 CancellationException을 일반 오류로 삼키지 않는다.
+        IO와 CPU/네이티브 분석으로 메인 스레드를 막지 않는다. NonCancellable은 파일/DB
+        일관성에 필요한 짧은 완료 구간에 제한하며 무조건 제거하거나 전체 분석에 확대하지 않는다.
+
+    - path: "app/src/main/**/ui/**"
+      instructions: |
+        CountViewModel의 busy, pendingSave, unsavedChanges, generation과 동등한 보호를 유지한다.
+        연속 보정·중복 확정·분석 취소/재시도·다른 작업의 늦은 결과가 현재 상태를 덮지 않아야 한다.
+        분석 결과는 작업 ID와 영역/작업 버전의 유효성을 확인한다. 네이티브 연산 취소가
+        즉시 완료된다고 가정하지 않는다. 중요한 완료·오류를 유실 가능한 일회성 이벤트로만 전달하지 않는다.
+        저장 실패 시 보정을 유지하고 마지막 영속 상태와 구분한다. 재시도는 같은 변경을 저장한다.
+        확정/삭제 성공 상태와 화면 이동은 영속 처리 성공 뒤에만 반영한다. 0개를 자동 확정하지 않는다.
+        재분석·영역 변경이 보정을 지우면 사전 확인하며 실패 시 기존 결과를 보존한다.
+        Navigation은 HomeRoute/WorkRoute/RecordRoute의 타입 안전 경로와 entry별 ViewModel을 유지한다.
+        경로에는 ID만 전달하고 사진/표시를 Repository에서 읽는다. 전역 선택 ID를 중복 복원하지 않는다.
+        입력 취소/실패는 원래 화면·작업 유지, 성공은 기존 작업을 보존하며 새 상세 화면으로 교체한다.
+        확정 후 편집 entry 제거, 읽기 전용 기록, 없는 ID의 오류/목록 복귀, 사진만 실패할 때 데이터 유지,
+        분석 중 뒤로 가기 취소, 저장 중 이동 차단, 미저장 변경 재시도를 화면 명세와 비교한다.
+        일시 UI·rememberSaveable/SavedStateHandle·Room 영속 데이터의 책임을 구분한다.
+        SavedStateHandle에 Bitmap·사진·대규모 후보를 무제한 넣어 Bundle 크기 문제를 만들지 않는다.
+        OS가 저장한 상태 복원과 강제 종료 후 마지막 영속 작업 재열기를 구분하며 중단된 분석을 자동 재개하지 않는다.
+        재구성마다 파일 읽기·분석·Bitmap 복제를 하지 않는다. Effect 키·최신 콜백·목록의 안정 ID를 확인한다.
+        PhotoPanel의 그리기와 hit-test는 같은 좌표계를 사용해야 한다. 확대·이동·여백·영역 밖 탭,
+        겹친 표시 선택을 확인한다. 표시 크기/번호 변경으로 분석을 재실행하지 않는다.
+        작은 화면·200% 글꼴·다크 모드·inset에서 주요 조작에 도달 가능해야 한다.
+        오류/미저장 상태와 자동/수동 표시는 색만으로 구분하지 않는다. TalkBack 이름·상태·개수,
+        표시 선택 목록과 위치 조절 대체 입력을 확인한다. 정해진 표시 도형이나 디자인 초안 수치를 강제하지 않는다.
+
+    - path: "app/src/main/**/data/**"
+      instructions: |
+        LocalCountRepository의 revision 비교 저장, 쓰기 직렬화, 확정 기록 편집 방지를 유지한다.
+        파일과 Room은 하나의 원자적 트랜잭션이 아니다. 가져오기 실패/취소 시 참조 사진 보존,
+        부분 파일 정리, 삭제 tombstone 후 재시도, 시작 시 orphan 정리와 새 가져오기의 경쟁을 검토한다.
+        정리 실패를 성공으로 숨기지 않는다. 예외·취소의 각 시점에서 DB 참조와 실제 파일을 대조한다.
+        DB 스키마와 TaskCodec payload의 변경은 기존 기록 호환성·마이그레이션을 함께 검토한다.
+        destructive migration, 역직렬화 실패를 빈 기록으로 대체, 사용자 데이터 초기화로 해결하지 않는다.
+        PhotoStore의 외부 Uri·파일명 검증, 스트림 닫기, 크기 제한, EXIF 회전/뒤집기, decode 실패,
+        Bitmap 샘플링·메모리 소유권·해제를 확인한다. 갤러리 원본을 수정/삭제하지 않는다.
+        작은 단면이 축소·재압축으로 사라지는지 검토하며 기존 50MB/3000px/2048px 등의 수치를
+        사용자 확정값으로 고정하지 않는다. 해상도 변경은 실제 사진 품질·메모리 근거가 필요하다.
+
+    - path: "app/src/main/**/model/**"
+      instructions: |
+        최종 count는 유효 markers에서 계산하고 별도 변경 가능한 숫자와 이중 관리하지 않는다.
+        자동 원본 후보와 수동 추가·제외·되돌리기 정보를 재열기 후에도 구분할 수 있어야 한다.
+        영역·중심·반경의 finite/범위, 안정적·고유 ID, 확정 후 불변성, 영역 변경의 초기화를 확인한다.
+        PhotoGeometry의 정규화 사진 좌표와 화면 좌표는 확대·이동·letterbox 후에도 왕복 일치해야 한다.
+        반경의 정규화 기준을 너비/높이와 일관되게 사용하고 NaN·0 크기·영역 밖 입력을 검토한다.
+        동심 안/밖 테두리는 한 단면으로 합치되 단순 근접 거리만으로 인접 파이프를 합치지 않는다.
+
+    - path: "app/src/**/data/*Detector.kt"
+      instructions: |
+        채택 접근은 OpenCV 원·타원 후보 + 영역 보완 + 단면 검증 + 중복 통합이며 AI/외부 추론은 범위 밖이다.
+        한 묶음 전체 사진과 선택적 배경 자르기를 기본으로 한다. 같은 평면·완벽한 원·어두운 내부·격자·
+        동일 겉보기 크기를 전제하지 않는다. 돌출/후퇴·반사·밀집·부분 가림을 다루고 숨은 개수를 추정하지 않는다.
+        영역/축소/분할 결과를 방향 보정 사진의 좌표로 복원한다. Mat 등 네이티브 자원을 실패·취소에도 해제한다.
+        최대 300개 목표를 후보 300개 절단의 근거로 삼지 않는다. 포화/초과는 안내하고 정상 결과로 숨기지 않는다.
+        기하학 점수를 정확도/AI 확률로 표현하지 않는다. 추가 전처리·분할은 실제 오류 개선 근거가 필요하다.
+        현재 ValidationRequiredDetector와 androidTest Hough 구현은 검증 대기/실험 스냅샷이다.
+        향후 승인된 복합 검출 구현과 런타임 의존성을 영구 금지하지 않는다. DETECTOR_VALIDATED나
+        단순 합성 원 테스트 통과만으로 사용자 검증 게이트를 해제하거나 현장 지원을 확정하지 않는다.
+
+    - path: "app/src/{test,androidTest}/**"
+      instructions: |
+        변경 위험에 맞는 회귀 테스트를 요구하며 구현을 그대로 복사한 테스트·무관한 전체 테스트 증설을 피한다.
+        CountViewModelTest의 실패 보정/확정 재시도·중복 완료·취소 후 늦은 결과·0개·복원,
+        RepositoryInstrumentedTest의 stale revision·삭제 중단·입력 실패·삽입 후 취소,
+        NavigationUiTest의 입력 취소/성공/실패·읽기 전용·없는 ID·이동 규칙을 관련 변경에서 확인한다.
+        시간 기반 sleep 대신 kotlinx-coroutines-test의 제어 가능한 스케줄러·지연 대역으로 경쟁을 재현한다.
+        테스트 대역 검증, 실제 Room/파일 검증, 실제 시스템 Picker/카메라 검증을 구분한다.
+        Activity 재생성, 새 ViewModel/SavedStateHandle, OS 프로세스 종료, force-stop은 대체 가능한 증거가 아니다.
+        합성 원 검출·에뮬레이터 UI 성공은 현장 정확도/실기기 5초/TalkBack 성공 근거가 아니다.
+        검출 인수는 PRD의 독립 실사진·정답 위치 일대일 대응과 사진별 누락+오검출로 판정한다.
+        N>0에서 보정 ≤ max(1, floor(N×0.05)), N=0 별도 평가, 보정 후 정답 일치를 유지한다.
+        300개·5초는 목표다. 첫 초기화/반복 분석과 전체 검수 시간을 구분하고 실패군을 평균으로 숨기지 않는다.
+
+    - path: "**/*.gradle.kts"
+      instructions: |
+        단일 앱 모듈과 기존 Kotlin/Compose/Navigation/Room 구성을 기준으로 검토한다.
+        버전 경고만으로 전체 업그레이드·Compose BOM·DI 라이브러리를 강제하지 않는다.
+        실제 호환성/보안 문제와 변경 의존성의 SDK·AGP·Kotlin·KSP·JVM 호환성을 확인한다.
+        test/androidTest와 런타임 의존성을 구분한다. OpenCV 런타임 도입은 승인된 구현 범위·
+        APK 크기·ABI/네이티브 초기화·라이선스·기기 검증으로 판단하며 테스트 전용 상태를 영구 강제하지 않는다.
+        Lint/테스트 비활성화나 minSdk/앱 ID/DB 설정 변경으로 문제를 우회하지 않는다.
+
+    - path: "app/src/main/{AndroidManifest.xml,res/xml/**}"
+      instructions: |
+        오프라인·앱 내부 사진/기록 보존·백업 제외 정책을 유지한다. 불필요한 네트워크·광범위 저장소 권한을 추가하지 않는다.
+        시스템 Photo Picker/카메라 계약에 필요한 권한만 검토한다. FileProvider는 applicationId 기반 authority,
+        exported=false, 필요한 captures 경로와 일시 URI 권한을 유지하며 전체 저장소를 노출하지 않는다.
+        manifest의 backup 설정과 Android 버전별 XML을 함께 확인한다. 설정만으로 실제 기기 이전 검증을 주장하지 않는다.
+
+    - path: ".github/**"
+      instructions: |
+        Issue/PR 템플릿은 docs/git_workflow.md를 따른다. 목적·범위·완료 조건·검증 계획과
+        버그 재현/기대/실제 동작을 구분한다. 미래 완료 조건을 실제 검증 없이 체크하지 않는다.
+        실제 존재하는 Issue만 연결하고 모든 완료 조건을 해결할 때만 종료 문구를 사용한다.
+        작성 예시·AI 리뷰 통과·PR 생성은 구현/검증 완료의 증거가 아니다. 민감 자료를 요구하지 않는다.
+        워크플로 변경은 권한·비밀값·외부 실행·검사 우회 여부를 확인하며 무관한 CI를 추가하도록 강제하지 않는다.
+
+    - path: "**/*.md"
+      instructions: |
+        PRD는 요구/지원/인수 기준, 자동 계수 설계는 기술 가정, 화면 명세는 흐름/상태,
+        Git 운영 규칙은 작업 절차, 결정 기록은 채택/대체 관계, 환경/검증 이력은 시점별 사실이다.
+        최신 정정·원문 기재·사용자 답변·공식 설명·추정·정적 코드 관찰·실험·성과를 합치지 않는다.
+        코드에 구현 경로가 있다는 이유로 실행·출시·현장 정확도·효율 성과를 주장하지 않는다.
+        변경에 영향 받은 부분만 갱신하고 모든 문서 재작성·결정 항목 생성은 강제하지 않는다.
+        로컬 링크·날짜·미검증·폐기 제안의 대체 관계를 확인한다. 과거 실행 기록은 소급해 성공으로 바꾸지 않는다.
+        Git 관련 지적은 docs/git_workflow.md를 따른다. 예시 Issue 번호/명령을 실제 수행으로 해석하지 않는다.
+        문서만 바뀐 PR에 앱 빌드/기기 테스트를 요구하지 않는다. CodeRabbit 리뷰 통과를 실행 검증으로 취급하지 않는다.
+
+knowledge_base:
+  code_guidelines:
+    enabled: true
+    filePatterns:
+      - "AGENTS.md"
+      - "PRD.md"
+      - "docs/auto_counting.md"
+      - "docs/design_spec.md"
+      - "docs/git_workflow.md"
