@@ -10,26 +10,40 @@ import androidx.activity.result.ActivityResultRegistry
 import androidx.activity.result.ActivityResultRegistryOwner
 import androidx.activity.result.contract.ActivityResultContract
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.ui.test.*
+import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollToNode
 import androidx.core.app.ActivityOptionsCompat
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import androidx.test.platform.app.InstrumentationRegistry
-import io.github.kyujin0911.pounter.data.*
-import io.github.kyujin0911.pounter.model.*
-import io.github.kyujin0911.pounter.ui.*
+import io.github.kyujin0911.pounter.core.model.CountTask
+import io.github.kyujin0911.pounter.core.model.Marker
+import io.github.kyujin0911.pounter.core.ui.theme.PipeTheme
+import io.github.kyujin0911.pounter.data.detector.Detection
+import io.github.kyujin0911.pounter.data.repository.CountRepository
+import io.github.kyujin0911.pounter.navigation.HomeRoute
+import io.github.kyujin0911.pounter.navigation.PipeNavigation
+import io.github.kyujin0911.pounter.navigation.RecordRoute
+import io.github.kyujin0911.pounter.navigation.WorkRoute
 import kotlinx.coroutines.flow.MutableStateFlow
-import org.junit.*
-import org.junit.Assert.*
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
+import org.junit.Rule
+import org.junit.Test
 
 class NavigationUiTest {
-    @get:Rule val rule = createComposeRule()
-    private lateinit var nav: NavHostController
+    @get:Rule val composeRule = createComposeRule()
+    private lateinit var navController: NavHostController
 
     private class Repository : CountRepository {
-        var stored =
+        var storedTask =
             CountTask(
                 "draft",
                 "photo.jpg",
@@ -39,11 +53,11 @@ class NavigationUiTest {
                 analyzed = true,
                 markers = listOf(Marker("m", .5f, .5f, .02f, true)),
             )
-        override val tasks = MutableStateFlow(listOf(stored))
-        var failSave = false
-        var failDelete = false
+        override val tasks = MutableStateFlow(listOf(storedTask))
+        var hasSaveFailure = false
+        var hasDeleteFailure = false
         var importCount = 0
-        var imported: CountTask? = null
+        var importedTask: CountTask? = null
 
         override suspend fun get(id: String) = tasks.value.firstOrNull { it.id == id }
 
@@ -51,7 +65,7 @@ class NavigationUiTest {
 
         override suspend fun import(uri: Uri): CountTask {
             importCount++
-            val next = imported ?: error("테스트 가져오기 실패")
+            val next = importedTask ?: error("테스트 가져오기 실패")
             tasks.value = tasks.value + next
             return next
         }
@@ -59,22 +73,22 @@ class NavigationUiTest {
         override suspend fun detect(task: CountTask): Detection = error("not used")
 
         override suspend fun save(task: CountTask): CountTask {
-            if (failSave) error("테스트 저장 실패")
-            stored = task.copy(revision = task.revision + 1)
-            tasks.value = listOf(stored)
-            return stored
+            if (hasSaveFailure) error("테스트 저장 실패")
+            storedTask = task.copy(revision = task.revision + 1)
+            tasks.value = listOf(storedTask)
+            return storedTask
         }
 
         override suspend fun delete(task: CountTask) {
-            if (failDelete) error("테스트 삭제 실패")
+            if (hasDeleteFailure) error("테스트 삭제 실패")
             tasks.value = emptyList()
         }
     }
 
-    private fun start(repo: Repository, inputRegistry: ActivityResultRegistry? = null) {
-        rule.setContent {
-            nav = rememberNavController()
-            if (inputRegistry == null) PipeTheme { PipeNavigation(repo, nav) }
+    private fun start(countRepository: Repository, inputRegistry: ActivityResultRegistry? = null) {
+        composeRule.setContent {
+            navController = rememberNavController()
+            if (inputRegistry == null) PipeTheme { PipeNavigation(countRepository, navController) }
             else
                 CompositionLocalProvider(
                     LocalActivityResultRegistryOwner provides
@@ -83,116 +97,118 @@ class NavigationUiTest {
                                 requireNotNull(inputRegistry)
                         }
                 ) {
-                    PipeTheme { PipeNavigation(repo, nav) }
+                    PipeTheme { PipeNavigation(countRepository, navController) }
                 }
         }
-        rule.waitForIdle()
+        composeRule.waitForIdle()
     }
 
     private fun scroll(text: String) {
-        rule.onNodeWithTag("content").performScrollToNode(hasText(text))
+        composeRule.onNodeWithTag("content").performScrollToNode(hasText(text))
     }
 
     private inline fun <reified T : Any> assertRoute() {
-        rule.runOnIdle { assertTrue(nav.currentBackStackEntry!!.destination.hasRoute<T>()) }
+        composeRule.runOnIdle {
+            assertTrue(navController.currentBackStackEntry!!.destination.hasRoute<T>())
+        }
     }
 
     private fun openDraft() {
         scroll("진행 중 · 이어서 확인")
-        rule.onNodeWithText("진행 중 · 이어서 확인").performClick()
-        rule.waitForIdle()
+        composeRule.onNodeWithText("진행 중 · 이어서 확인").performClick()
+        composeRule.waitForIdle()
         assertRoute<WorkRoute>()
     }
 
     @Test
     fun confirmationFailureStaysInWorkAndRetryReplacesEditor() {
-        val repo = Repository()
-        repo.failSave = true
-        start(repo)
+        val countRepository = Repository()
+        countRepository.hasSaveFailure = true
+        start(countRepository)
         openDraft()
         scroll("1개 확인하고 확정")
-        rule.onNodeWithText("1개 확인하고 확정").performClick()
-        rule.onNodeWithText("확정 저장").performClick()
-        rule.waitForIdle()
+        composeRule.onNodeWithText("1개 확인하고 확정").performClick()
+        composeRule.onNodeWithText("확정 저장").performClick()
+        composeRule.waitForIdle()
         assertRoute<WorkRoute>()
-        assertFalse(repo.stored.confirmed)
+        assertFalse(countRepository.storedTask.confirmed)
         InstrumentationRegistry.getInstrumentation().sendKeyDownUpSync(KeyEvent.KEYCODE_BACK)
-        rule.waitForIdle()
-        rule.onNodeWithText("저장되지 않은 변경").assertIsDisplayed()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithText("저장되지 않은 변경").assertIsDisplayed()
         assertRoute<WorkRoute>()
-        rule.onNodeWithText("취소").performClick()
+        composeRule.onNodeWithText("취소").performClick()
         scroll("저장 재시도")
-        rule.onNodeWithText("저장 재시도").assertIsDisplayed()
-        repo.failSave = false
-        rule.onNodeWithText("저장 재시도").performClick()
-        rule.waitForIdle()
+        composeRule.onNodeWithText("저장 재시도").assertIsDisplayed()
+        countRepository.hasSaveFailure = false
+        composeRule.onNodeWithText("저장 재시도").performClick()
+        composeRule.waitForIdle()
         assertRoute<RecordRoute>()
-        rule.onNodeWithText("수동 표시 시작").assertDoesNotExist()
-        rule.runOnIdle { nav.popBackStack() }
-        rule.waitForIdle()
+        composeRule.onNodeWithText("수동 표시 시작").assertDoesNotExist()
+        composeRule.runOnIdle { navController.popBackStack() }
+        composeRule.waitForIdle()
         assertRoute<HomeRoute>()
     }
 
     @Test
     fun backToListPreservesDraftAndReopensIt() {
-        val repo = Repository()
-        start(repo)
+        val countRepository = Repository()
+        start(countRepository)
         openDraft()
         scroll("기록 목록")
-        rule.onNodeWithText("기록 목록").performClick()
-        rule.waitForIdle()
+        composeRule.onNodeWithText("기록 목록").performClick()
+        composeRule.waitForIdle()
         assertRoute<HomeRoute>()
-        assertEquals(1, repo.stored.count)
+        assertEquals(1, countRepository.storedTask.count)
         openDraft()
-        assertEquals(1, repo.stored.count)
+        assertEquals(1, countRepository.storedTask.count)
     }
 
     @Test
     fun unknownIdOffersRecoveryWithoutShowingAnotherTask() {
         start(Repository())
-        rule.runOnIdle { nav.navigate(WorkRoute("missing")) }
-        rule.waitForIdle()
+        composeRule.runOnIdle { navController.navigate(WorkRoute("missing")) }
+        composeRule.waitForIdle()
         assertRoute<WorkRoute>()
-        rule.onNodeWithText("현재 개수").assertDoesNotExist()
+        composeRule.onNodeWithText("현재 개수").assertDoesNotExist()
         scroll("목록으로 돌아가기")
-        rule.onNodeWithText("목록으로 돌아가기").performClick()
-        rule.waitForIdle()
+        composeRule.onNodeWithText("목록으로 돌아가기").performClick()
+        composeRule.waitForIdle()
         assertRoute<HomeRoute>()
     }
 
     @Test
     fun recordRouteIsReadOnlyAndDeleteNavigatesOnlyAfterSuccess() {
-        val repo = Repository()
-        repo.stored = repo.stored.confirm(2)
-        repo.tasks.value = listOf(repo.stored)
-        start(repo)
+        val countRepository = Repository()
+        countRepository.storedTask = countRepository.storedTask.confirm(2)
+        countRepository.tasks.value = listOf(countRepository.storedTask)
+        start(countRepository)
         scroll("확정됨 · 1개")
-        rule.onNodeWithText("확정됨 · 1개").performClick()
-        rule.waitForIdle()
+        composeRule.onNodeWithText("확정됨 · 1개").performClick()
+        composeRule.waitForIdle()
         assertRoute<RecordRoute>()
-        rule.onNodeWithText("표시 보정").assertDoesNotExist()
-        repo.failDelete = true
+        composeRule.onNodeWithText("표시 보정").assertDoesNotExist()
+        countRepository.hasDeleteFailure = true
         scroll("이 기록 삭제")
-        rule.onNodeWithText("이 기록 삭제").performClick()
-        rule.onNodeWithText("삭제", useUnmergedTree = true).performClick()
-        rule.waitForIdle()
+        composeRule.onNodeWithText("이 기록 삭제").performClick()
+        composeRule.onNodeWithText("삭제", useUnmergedTree = true).performClick()
+        composeRule.waitForIdle()
         assertRoute<RecordRoute>()
-        assertEquals(1, repo.tasks.value.size)
-        repo.failDelete = false
+        assertEquals(1, countRepository.tasks.value.size)
+        countRepository.hasDeleteFailure = false
         scroll("이 기록 삭제")
-        rule.onNodeWithText("이 기록 삭제").performClick()
-        rule.onNodeWithText("삭제", useUnmergedTree = true).performClick()
-        rule.waitForIdle()
+        composeRule.onNodeWithText("이 기록 삭제").performClick()
+        composeRule.onNodeWithText("삭제", useUnmergedTree = true).performClick()
+        composeRule.waitForIdle()
         assertRoute<HomeRoute>()
-        assertTrue(repo.tasks.value.isEmpty())
+        assertTrue(countRepository.tasks.value.isEmpty())
     }
 
     @Test
     fun wrongRouteKindRedirectsToActualPersistedState() {
-        val repo = Repository()
-        start(repo)
-        rule.runOnIdle { nav.navigate(RecordRoute("draft")) }
-        rule.waitForIdle()
+        val countRepository = Repository()
+        start(countRepository)
+        composeRule.runOnIdle { navController.navigate(RecordRoute("draft")) }
+        composeRule.waitForIdle()
         assertRoute<WorkRoute>()
     }
 
@@ -210,59 +226,62 @@ class NavigationUiTest {
 
     @Test
     fun cancelledPhotoAndCameraInputKeepOriginRouteAndTask() {
-        val repo = Repository()
-        start(repo, registry(Activity.RESULT_CANCELED))
+        val countRepository = Repository()
+        start(countRepository, registry(Activity.RESULT_CANCELED))
         openDraft()
         scroll("다른 사진 선택")
-        rule.onNodeWithText("다른 사진 선택").performClick()
-        rule.waitForIdle()
+        composeRule.onNodeWithText("다른 사진 선택").performClick()
+        composeRule.waitForIdle()
         assertRoute<WorkRoute>()
-        assertEquals(0, repo.importCount)
+        assertEquals(0, countRepository.importCount)
         scroll("새 사진 촬영")
-        rule.onNodeWithText("새 사진 촬영").performClick()
-        rule.waitForIdle()
+        composeRule.onNodeWithText("새 사진 촬영").performClick()
+        composeRule.waitForIdle()
         assertRoute<WorkRoute>()
-        assertEquals(0, repo.importCount)
-        assertEquals(1, repo.stored.count)
+        assertEquals(0, countRepository.importCount)
+        assertEquals(1, countRepository.storedTask.count)
     }
 
     @Test
     fun successfulImportReplacesDetailAndPreservesPreviousDraft() {
-        val repo = Repository()
-        repo.imported = repo.stored.copy(id = "new")
+        val countRepository = Repository()
+        countRepository.importedTask = countRepository.storedTask.copy(id = "new")
         start(
-            repo,
+            countRepository,
             registry(Activity.RESULT_OK, Intent().setData(Uri.parse("content://fixture/photo"))),
         )
         openDraft()
         scroll("다른 사진 선택")
-        rule.onNodeWithText("다른 사진 선택").performClick()
-        rule.waitForIdle()
+        composeRule.onNodeWithText("다른 사진 선택").performClick()
+        composeRule.waitForIdle()
         assertRoute<WorkRoute>()
-        rule.runOnIdle {
-            assertEquals("new", nav.currentBackStackEntry!!.arguments!!.getString("taskId"))
+        composeRule.runOnIdle {
+            assertEquals(
+                "new",
+                navController.currentBackStackEntry!!.arguments!!.getString("taskId"),
+            )
         }
-        assertEquals(2, repo.tasks.value.size)
-        assertEquals(1, repo.stored.count)
-        rule.runOnIdle { nav.popBackStack() }
-        rule.waitForIdle()
+        assertEquals(2, countRepository.tasks.value.size)
+        assertEquals(1, countRepository.storedTask.count)
+        composeRule.runOnIdle { navController.popBackStack() }
+        composeRule.waitForIdle()
         assertRoute<HomeRoute>()
     }
 
     @Test
     fun failedImportKeepsOriginAndShowsRetryableError() {
-        val repo = Repository()
+        val countRepository = Repository()
         start(
-            repo,
+            countRepository,
             registry(Activity.RESULT_OK, Intent().setData(Uri.parse("content://fixture/photo"))),
         )
         openDraft()
         scroll("다른 사진 선택")
-        rule.onNodeWithText("다른 사진 선택").performClick()
-        rule.waitForIdle()
+        composeRule.onNodeWithText("다른 사진 선택").performClick()
+        composeRule.waitForIdle()
         assertRoute<WorkRoute>()
-        assertEquals(1, repo.tasks.value.size)
+        assertEquals(1, countRepository.tasks.value.size)
         scroll("테스트 가져오기 실패")
-        rule.onNodeWithText("테스트 가져오기 실패").assertIsDisplayed()
+        composeRule.onNodeWithText("테스트 가져오기 실패").assertIsDisplayed()
     }
 }

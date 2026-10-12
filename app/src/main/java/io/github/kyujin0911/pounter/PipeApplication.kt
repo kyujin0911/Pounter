@@ -3,8 +3,14 @@ package io.github.kyujin0911.pounter
 import android.app.Application
 import android.util.Log
 import androidx.room.Room
-import io.github.kyujin0911.pounter.data.*
-import kotlinx.coroutines.*
+import io.github.kyujin0911.pounter.data.detector.ValidationRequiredDetector
+import io.github.kyujin0911.pounter.data.local.database.CountDatabase
+import io.github.kyujin0911.pounter.data.local.photo.PhotoStore
+import io.github.kyujin0911.pounter.data.repository.LocalCountRepository
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 
 class PipeApplication : Application() {
     override fun onCreate() {

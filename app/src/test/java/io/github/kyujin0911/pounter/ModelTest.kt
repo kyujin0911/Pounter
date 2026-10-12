@@ -1,7 +1,14 @@
 package io.github.kyujin0911.pounter
 
-import io.github.kyujin0911.pounter.model.*
-import org.junit.Assert.*
+import io.github.kyujin0911.pounter.core.model.CountTask
+import io.github.kyujin0911.pounter.core.model.Marker
+import io.github.kyujin0911.pounter.core.model.Region
+import io.github.kyujin0911.pounter.core.model.suppressConcentric
+import io.github.kyujin0911.pounter.feature.shared.PhotoGeometry
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ModelTest {

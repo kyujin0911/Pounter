@@ -8,34 +8,50 @@ import android.net.Uri
 import androidx.room.Room
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
-import io.github.kyujin0911.pounter.data.*
-import io.github.kyujin0911.pounter.model.*
+import io.github.kyujin0911.pounter.core.model.CountTask
+import io.github.kyujin0911.pounter.core.model.Marker
+import io.github.kyujin0911.pounter.data.detector.DETECTOR_VALIDATED
+import io.github.kyujin0911.pounter.data.detector.HoughPipeDetector
+import io.github.kyujin0911.pounter.data.detector.ValidationRequiredDetector
+import io.github.kyujin0911.pounter.data.local.database.CountDatabase
+import io.github.kyujin0911.pounter.data.local.database.TaskCodec
+import io.github.kyujin0911.pounter.data.local.database.TaskDao
+import io.github.kyujin0911.pounter.data.local.database.TaskEntity
+import io.github.kyujin0911.pounter.data.local.photo.PhotoStore
+import io.github.kyujin0911.pounter.data.repository.LocalCountRepository
 import java.io.File
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
-import org.junit.*
-import org.junit.Assert.*
+import org.junit.After
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
+import org.junit.Assert.fail
+import org.junit.Before
+import org.junit.Test
 import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class RepositoryInstrumentedTest {
     private val context = InstrumentationRegistry.getInstrumentation().targetContext
     private lateinit var database: CountDatabase
-    private lateinit var repo: LocalCountRepository
-    private lateinit var photos: PhotoStore
-    private val imported = mutableListOf<String>()
+    private lateinit var countRepository: LocalCountRepository
+    private lateinit var photoStore: PhotoStore
+    private val importedPhotoNames = mutableListOf<String>()
 
     @Before
     fun setup() {
         database = Room.inMemoryDatabaseBuilder(context, CountDatabase::class.java).build()
-        photos = PhotoStore(context)
-        repo = LocalCountRepository(database.tasks(), photos, ValidationRequiredDetector())
+        photoStore = PhotoStore(context)
+        countRepository =
+            LocalCountRepository(database.tasks(), photoStore, ValidationRequiredDetector())
     }
 
     @After
     fun cleanup() {
-        imported.forEach { photos.delete(it) }
+        importedPhotoNames.forEach { photoStore.delete(it) }
         database.close()
     }
 
@@ -59,7 +75,7 @@ class RepositoryInstrumentedTest {
         source.outputStream().use { image.compress(Bitmap.CompressFormat.PNG, 100, it) }
         image.recycle()
         return try {
-            repo.import(Uri.fromFile(source)).also { imported += it.photoName }
+            countRepository.import(Uri.fromFile(source)).also { importedPhotoNames += it.photoName }
         } finally {
             source.delete()
         }
@@ -68,34 +84,34 @@ class RepositoryInstrumentedTest {
     @Test
     fun importEditReloadConfirmAndDelete() = runBlocking {
         val initial = fixture()
-        assertTrue(photos.file(initial.photoName).exists())
+        assertTrue(photoStore.file(initial.photoName).exists())
         assertEquals(800, initial.width)
         val marker = Marker("manual", .5f, .5f, .02f, true)
-        val stored = repo.save(initial.copy(analyzed = true).edit(listOf(marker)))
+        val stored = countRepository.save(initial.copy(analyzed = true).edit(listOf(marker)))
         val reopened =
-            LocalCountRepository(database.tasks(), photos, ValidationRequiredDetector())
+            LocalCountRepository(database.tasks(), photoStore, ValidationRequiredDetector())
                 .get(stored.id)!!
         assertEquals(stored, reopened)
-        val confirmed = repo.save(reopened.confirm(100))
-        assertTrue(repo.get(initial.id)!!.confirmed)
+        val confirmed = countRepository.save(reopened.confirm(100))
+        assertTrue(countRepository.get(initial.id)!!.confirmed)
         try {
-            repo.save(confirmed)
+            countRepository.save(confirmed)
             fail("confirmed must be immutable")
         } catch (_: IllegalStateException) {}
-        repo.delete(confirmed)
-        assertNull(repo.get(initial.id))
-        assertFalse(photos.file(initial.photoName).exists())
+        countRepository.delete(confirmed)
+        assertNull(countRepository.get(initial.id))
+        assertFalse(photoStore.file(initial.photoName).exists())
     }
 
     @Test
     fun staleRevisionCannotOverwriteSavedChanges() = runBlocking {
         val initial = fixture()
-        repo.save(initial.copy(analyzed = true))
+        countRepository.save(initial.copy(analyzed = true))
         try {
-            repo.save(initial.copy(analyzed = true))
+            countRepository.save(initial.copy(analyzed = true))
             fail("stale update accepted")
         } catch (_: IllegalStateException) {}
-        assertEquals(1L, repo.get(initial.id)!!.revision)
+        assertEquals(1L, countRepository.get(initial.id)!!.revision)
     }
 
     @Test
@@ -103,10 +119,10 @@ class RepositoryInstrumentedTest {
         val initial = fixture()
         val deleted = initial.copy(deleted = true, revision = 1)
         database.tasks().update(initial.id, TaskCodec.encode(deleted), 0, 1, 2, true)
-        assertNull(repo.get(initial.id))
-        assertTrue(photos.file(initial.photoName).exists())
-        repo.finishDeletes()
-        assertFalse(photos.file(initial.photoName).exists())
+        assertNull(countRepository.get(initial.id))
+        assertTrue(photoStore.file(initial.photoName).exists())
+        countRepository.finishDeletes()
+        assertFalse(photoStore.file(initial.photoName).exists())
         assertTrue(database.tasks().tombstones().isEmpty())
     }
 
@@ -118,12 +134,12 @@ class RepositoryInstrumentedTest {
                 writeText("not an image")
             }
         try {
-            repo.import(Uri.fromFile(source))
+            countRepository.import(Uri.fromFile(source))
             fail("invalid photo accepted")
         } catch (_: java.io.IOException) {} finally {
             source.delete()
         }
-        assertEquals(initial, repo.get(initial.id))
+        assertEquals(initial, countRepository.get(initial.id))
     }
 
     @Test
@@ -140,22 +156,67 @@ class RepositoryInstrumentedTest {
                     resume.await()
                 }
             }
-        val slowRepo = LocalCountRepository(slowDao, photos, ValidationRequiredDetector())
-        val job = launch { slowRepo.import(Uri.fromFile(photos.file(initial.photoName))) }
+        val slowRepo = LocalCountRepository(slowDao, photoStore, ValidationRequiredDetector())
+        val job = launch { slowRepo.import(Uri.fromFile(photoStore.file(initial.photoName))) }
         val entity = inserted.await()
         job.cancel()
         resume.complete(Unit)
         job.join()
         val persisted = slowRepo.get(entity.id)!!
-        imported += persisted.photoName
-        assertTrue(photos.file(persisted.photoName).exists())
+        importedPhotoNames += persisted.photoName
+        assertTrue(photoStore.file(persisted.photoName).exists())
         assertEquals(persisted, slowRepo.get(entity.id))
+    }
+
+    @Test
+    fun legacyVersionOneDatabaseAndPayloadReopenWithoutMigration() = runBlocking {
+        // SQL/identity/payload are the pre-refactor v1 contract, not generated by new codec.
+        val databaseName = "legacy-counts-${java.util.UUID.randomUUID()}.db"
+        val payload =
+            """{"id":"legacy","photo":"legacy.jpg","width":800,"height":600,"created":1,"updated":2,"revision":3,"region":[0,0,1,1],"markers":[{"id":"m","x":0.5,"y":0.5,"r":0.02,"manual":true}],"automatic":[],"undo":null,"analyzed":true,"millis":null,"confirmed":100,"deleted":false}"""
+        context.openOrCreateDatabase(databaseName, 0, null).use { legacyDatabase ->
+            legacyDatabase.execSQL(
+                "CREATE TABLE tasks (id TEXT NOT NULL PRIMARY KEY, payload TEXT NOT NULL, revision INTEGER NOT NULL, updatedAt INTEGER NOT NULL, deleted INTEGER NOT NULL)"
+            )
+            legacyDatabase.execSQL(
+                "CREATE TABLE room_master_table (id INTEGER PRIMARY KEY, identity_hash TEXT)"
+            )
+            legacyDatabase.execSQL(
+                "INSERT INTO room_master_table VALUES(42, '5e458c13ee203a11ba2f7d79b3debf20')"
+            )
+            legacyDatabase.execSQL(
+                "INSERT INTO tasks VALUES(?, ?, ?, ?, ?)",
+                arrayOf<Any>("legacy", payload, 3, 2, 0),
+            )
+            legacyDatabase.version = 1
+        }
+        val reopenedDatabase =
+            Room.databaseBuilder(context, CountDatabase::class.java, databaseName).build()
+        try {
+            val repository =
+                LocalCountRepository(
+                    reopenedDatabase.tasks(),
+                    photoStore,
+                    ValidationRequiredDetector(),
+                )
+            val task = repository.get("legacy")!!
+            assertEquals(3L, task.revision)
+            assertTrue(task.confirmed)
+            assertEquals(100L, task.confirmedAt)
+            assertEquals(1, task.count)
+            assertTrue(task.markers.single().manual)
+            assertEquals("legacy.jpg", task.photoName)
+            assertEquals(payload, reopenedDatabase.tasks().get("legacy")!!.payload)
+        } finally {
+            reopenedDatabase.close()
+            context.deleteDatabase(databaseName)
+        }
     }
 
     @Test
     fun prototypeLoadsNativeLibraryAndDetectsSyntheticCircles() = runBlocking {
         val initial = fixture()
-        val detected = HoughPipeDetector(photos).detect(initial)
+        val detected = HoughPipeDetector(photoStore).detect(initial)
         assertEquals(12, detected.markers.size)
         assertTrue(detected.markers.all { initial.region.contains(it.x, it.y) })
         // Synthetic success is explicitly not evidence of real-world accuracy.

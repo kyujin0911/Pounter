@@ -6,12 +6,22 @@ import android.graphics.Color
 import android.graphics.Paint
 import android.net.Uri
 import androidx.compose.ui.graphics.asAndroidBitmap
-import androidx.compose.ui.test.*
+import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.captureToImage
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
-import io.github.kyujin0911.pounter.model.CountTask
+import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollToNode
+import io.github.kyujin0911.pounter.core.model.CountTask
 import java.io.File
 import kotlinx.coroutines.runBlocking
-import org.junit.*
+import org.junit.After
+import org.junit.Rule
+import org.junit.Test
 
 class AppUiTest {
     @get:Rule val rule = createAndroidComposeRule<MainActivity>()
