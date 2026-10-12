@@ -64,6 +64,11 @@ Navigation Compose의 타입 안전 경로로 목록·계수 작업·확정 기�
 ./gradlew connectedDebugAndroidTest
 ```
 
+## Jetpack Compose
+For all Compose/Android UI tasks, follow the instructions in
+`skills/compose-expert/SKILL.md` and consult the reference
+files in `skills/compose-expert/references/` before answering.
+
 검출은 PRD의 독립 실사진·정답 위치·대표 실기기로 평가한다. 첫 분석/반복 분석과 전체 검수 시간을 구분한다. 회전/Activity 재생성, OS 프로세스 종료, 강제 종료 재실행을 서로 대신한 검증으로 보고하지 않는다. 미확인 항목은 최소 확인 절차와 함께 남긴다.
 
 기존 빌드 설정은 환경 기록을 참고하고 필요한 시점에 가볍게 확인한다. 정상 설정을 반복 요구하지 않는다. 인증·권한·대상 변경이나 실제 오류가 있을 때만 재설정 안내. 이미지·오버레이·개인 경로·비밀값은 커밋하지 않는다. 선택 도구 연결은 전체 작업의 필수 선행 조건으로 만들지 않는다.
