@@ -1,12 +1,31 @@
 # Pounter Git 운영 규칙
 
-갱신일: 2026-10-12. 브랜치·커밋·PR·병합 규칙의 단일 기준이다. 제품 요구는 [PRD](../PRD.md), Codex 실행 경계는 [AGENTS](../AGENTS.md)를 따른다. 아래 명령·메시지는 사용 예시이며 실제 실행 증거가 아니다.
+갱신일: 2026-10-12. Issue·브랜치·커밋·PR·병합 규칙의 단일 기준이다. 제품 요구는 [PRD](../PRD.md), Codex 실행 경계는 [AGENTS](../AGENTS.md)를 따른다. 아래 명령·메시지는 사용 예시이며 실제 실행 증거가 아니다.
 
 ## 확인한 상태와 채택 이유
 
 이번 시작 시 로컬 main은 db5490e이며 저장된 origin/main과 차이가 0/0이었다. origin은 kyujin0911/Pounter 저장소로 등록되어 있다. 원격 조회/fetch는 하지 않았으므로 GitHub 서버의 최신 상태와 기본 브랜치·보호 규칙은 미확인이다. 로컬 .github 템플릿·CI 파일, commit.template 설정은 없었다. 이전 영문 커밋과 기존 브랜치 이력은 그대로 보존한다.
 
 GitHub Flow를 유지한다. 소규모 개인 체험 앱에는 main과 목적별 작업 브랜치로 충분하며 develop/release/hotfix를 추가하지 않는다. main에 반영된 앱 품질과 자동 계수의 현장 성능은 별도이며, 미검증 기능을 완료로 보고하지 않는다.
+
+## Issue 규칙과 템플릿
+
+기본 작성 언어는 한국어, 제목은 type(scope): 구체적인 목적/증상으로 한다. type은 커밋 규칙을 재사용하고 scope는 선택이다. 버그는 fix, 기능은 feat, 구조 개선은 refactor, 문서/빌드 작업은 docs/build 등으로 구분한다. 제목의 성과 수치와 원인 확정은 실제 근거가 있을 때만 쓴다.
+
+- 먼저 같은 목적/증상의 기존 Issue를 찾고 적합하면 보완한다. 작은 오타·명확한 단일 문서 수정까지 Issue 생성을 강제하지 않는다. 기능·재현 버그·설계 선택·여러 단계의 검증 작업은 Issue로 목적을 남긴다.
+- Issue 하나는 독립적으로 완료 조건을 판정할 수 있는 목적이다. 파일/커밋 개수로 나누지 않는다. 코드 구조 정리와 Koin처럼 검증·위험·되돌림 기준이 다르면 별도 Issue를 만들고 선행 관계를 연결한다.
+- [.github/ISSUE_TEMPLATE/01-work.md](../.github/ISSUE_TEMPLATE/01-work.md): 기능·리팩터링·문서·빌드·기술 조사용. 목적, 범위, 완료 조건, 검증 계획, 필요할 때 관련/제약을 적는다.
+- [.github/ISSUE_TEMPLATE/02-bug.md](../.github/ISSUE_TEMPLATE/02-bug.md): 기대/실제 동작, 재현 절차, 코드/실행 환경, 완료 조건, 근거를 적는다. 재현·원인·환경이 미확인이면 그대로 표시한다.
+- 완료 조건의 체크박스는 미래 작업의 조건이다. 실제 확인한 뒤에만 체크한다. 검출 실험은 앱 통합 완료와 구분하고 사진 출처·독립 자료·정답 위치·누락/오검출·시간 정의를 PRD에 맞춘다.
+- 개인정보·키·현장 사진·개인 경로는 Issue에도 올리지 않는다. 최소 재현 대역과 민감 내용 제거한 로그를 사용한다.
+- 상태는 본문/댓글에서 검토 중→진행 중→검증 대기→완료/취소를 설명한다. GitHub Issue는 open/closed와 종료 이유로 관리하며 실제 Draft 기능이 있다고 가정하지 않는다. 별도 Project·상태/우선순위 라벨·자동 담당자는 강제하지 않는다.
+- 열린 Issue가 작업 요청/승인 범위를 대신하지 않는다. 실제 사용자가 허용한 코드/원격 동작만 수행한다. Codex가 GitHub Issue를 작성·수정하는 경우도 해당 요청 범위를 확인한다.
+
+Issue 기반 작업의 브랜치 예시: codex/123-save-retry. 실제 Issue가 없으면 기존 codex/save-retry 형식을 사용하며 번호를 만들어 쓰지 않는다. 기본은 목적별 Issue→작업 브랜치→커밋→PR이다. 한 Issue를 여러 PR로 나눌 때 남은 완료 조건과 의존 관계를 명시한다.
+
+PR/중간 커밋에서 진행을 연결하려면 Refs: #실제번호를 사용한다. 완료 조건 전부를 해결하는 최종 PR에만 Closes #실제번호를 적는다. 기본 브랜치 병합 후 자동 종료 여부와 잔여 검증을 확인한다. 단순 커밋·PR 생성·AI 리뷰 통과로 Issue를 완료 처리하지 않는다. 취소/중복은 이유와 대체 Issue를 남긴다.
+
+템플릿은 기본 브랜치의 .github/ISSUE_TEMPLATE에 반영해야 새 Issue 선택 화면에서 사용된다. [config.yml](../.github/ISSUE_TEMPLATE/config.yml)은 자유 작성도 허용한다. Markdown 템플릿은 필수 입력을 자동 강제하지 않으므로 제출 전 목적/재현·완료 조건을 검토한다. 자동 라벨·담당자나 관련 설정을 이번에 추가하지 않는다. 실제 Issue 생성 없이 템플릿 등록 파일을 검증하고 GitHub 기본 브랜치에서 확인한다.
 
 ## 작업 순서와 브랜치
 
@@ -130,10 +149,12 @@ squash 후 기존 작업 브랜치를 계속 사용하지 않는다. 최신 main
 
 권고: GitHub 기본 브랜치 main, PR을 통한 반영, force push·삭제 제한, Squash merge 허용. 개인 프로젝트에는 다른 사람의 승인 1회를 필수로 걸지 않는다. 필수 상태 검사는 실제 CI가 생긴 뒤 유효한 검사 이름으로 설정한다. 현재 CI·보호 설정은 확인/적용하지 않았으므로 작동 중이라고 보고하지 않는다.
 
-PR 템플릿은 대상 기본 브랜치에 반영된 뒤 사용 여부를 확인한다. 로컬 .gitmessage 설정은 clone한 개발자가 선택한다. hooks·commitlint·Husky·이슈 템플릿·새 CI는 현재 작성 부담보다 이점이 확인되지 않아 추가하지 않는다. 반복되는 누락이나 실제 협업이 생기면 별도 요청으로 재검토한다.
+PR 템플릿은 대상 기본 브랜치에 반영된 뒤 사용 여부를 확인한다. 로컬 .gitmessage 설정은 clone한 개발자가 선택한다. hooks·commitlint·Husky·새 CI는 현재 작성 부담보다 이점이 확인되지 않아 추가하지 않는다. Issue 템플릿은 이후 명시적 사용자 요청에 따라 위 두 종류를 추가한다. 반복되는 누락이나 실제 협업이 생기면 별도 요청으로 재검토한다.
 
 ## 근거
 
 - [GitHub Flow](https://docs.github.com/en/get-started/using-github/github-flow): 가벼운 브랜치 기반 흐름.
 - [Conventional Commits 1.0.0](https://www.conventionalcommits.org/en/v1.0.0/): 제목 형식·선택 scope·호환성 파괴 표시. 언어·type 목록·길이는 Pounter의 자체 정책이다.
 - [GitHub PR 병합](https://docs.github.com/en/pull-requests/reference/pull-request-merges): Squash merge와 브랜치 재사용의 주의점. 병합 방식은 프로젝트 선택이다.
+
+- [GitHub Issue 템플릿 설정](https://docs.github.com/en/communities/using-templates-to-encourage-useful-issues-and-pull-requests/configuring-issue-templates-for-your-repository): 기본 브랜치 반영·Markdown 메타데이터·선택 화면 설정.

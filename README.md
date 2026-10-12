@@ -44,3 +44,5 @@ Android Studio에서 이 폴더를 열고 Gradle Sync 후 `app`을 실행합니�
 ## 개발 협업·Git
 
 [Git 운영 규칙](docs/git_workflow.md)에서 브랜치·커밋·PR·병합 흐름을 확인합니다. [PR 템플릿](.github/pull_request_template.md)과 [커밋 템플릿](.gitmessage)을 사용하며, commit.template 로컬 적용은 운영 문서의 선택 명령을 따릅니다.
+
+작업/버그 Issue는 [작업 제안·계획](.github/ISSUE_TEMPLATE/01-work.md), [버그 보고](.github/ISSUE_TEMPLATE/02-bug.md) 템플릿을 사용합니다. 작성·종료 기준은 [Git 운영 규칙](docs/git_workflow.md#issue-규칙과-템플릿)을 따릅니다.
