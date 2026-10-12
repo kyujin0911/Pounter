@@ -1,0 +1,10 @@
+.gradle/
+.kotlin/
+**/build/
+local.properties
+.venv/
+.idea/
+*.iml
+captures/
+docs/local-validation/
+.DS_Store
