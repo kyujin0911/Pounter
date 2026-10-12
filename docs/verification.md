@@ -80,3 +80,35 @@ SavedStateHandle 복원 경계의 공식 근거: [Saved State 모듈](https://de
 ./gradlew connectedDebugAndroidTest \
   '-Pandroid.testInstrumentationRunnerArguments.notClass=io.github.kyujin0911.pounter.RepositoryInstrumentedTest#prototypeLoadsNativeLibraryAndDetectsSyntheticCircles'
 ```
+
+## 파일·책임·패키지·명명·포맷 정리 — 2026-10-12
+
+범위: [Issue #1](https://github.com/kyujin0911/Pounter/issues/1), codex/1-code-structure. 기준 main e30d20c, 포맷 커밋 e8eabb2, 구조 코드 커밋 8a7f855, 공유 표시 삭제/읽기 전용 테스트 커밋 b903d69. Koin·자동 검출 구현/실험·push·PR/병합은 제외했다. 초기 Issue 생성의 403은 사용자 재개 요청 후 재시도로 해소됐으며 실제 Issue 생성 성공을 확인했다.
+
+### 이번 실행 결과
+
+- spotlessApply/spotlessCheck, assembleDebug, testDebugUnitTest, lintDebug 성공. JVM 27개: Count 12, 모델/좌표 7, Home 2, Record 4, 가져오기 복원 1, 경로 직렬화 호환 1. 기존 검증을 이번 결과로 복사하지 않았다.
+- Lint 오류 0·경고 26: GradleDependency 20, NewerVersionAvailable 4, OldTargetApi 1, AndroidGradlePluginVersion 1. 기존 SDK/의존성 경고는 유지했고 검사 비활성화·전체 업그레이드는 하지 않았다.
+- Small_Phone API36(Android16) arm64 에뮬레이터: 허용된 UI 10개(Navigation8 + 앱1 + 큰 글꼴1), Repository6개 통과. 16개 선택 실행 성공 후, 마지막 DB 쓰기 전 값 이름 정리 뒤 빌드/JVM/Lint와 Repository6개를 다시 실행해 통과했다. 고유 테스트 수를 반복 실행만큼 늘리지 않는다.
+- UI: 입력 취소/실패·가져오기 후 기존 작업 보존, 실패 확정/재시도, 편집 entry 제거, 없는 ID 복귀, 읽기 전용 기록·삭제 실패/성공, 잘못된 경로 종류 정정, 수동 추가·표시 목록 삭제·되돌리기·확정·재열기·삭제. 확정 기록의 표시 목록에서 삭제 부재를 추가 확인했다. 작업/기록의 Activity 재생성 확인. 시스템 Picker/삼성 카메라 조작은 ActivityResultRegistry 대역과 구분한다.
+- JVM: Count/Record의 목록 미구독, Home 목록 갱신/오류, Record 삭제 실패/중복 방지, 기존 importedTaskId 복원·entry별 처리, 저장 실패 보정/확정 스냅샷·동일 변경 재시도, 취소된 늦은 결과 차단. 실제 OS 종료 복원으로 확대하지 않는다.
+- 호환: 이전 v1 SQL/identityHash와 기존 JSON payload로 별도 SQLite 파일을 만든 뒤 새 CountDatabase/Repository에서 마이그레이션 없이 열고 revision·표시·확정과 payload 원문을 확인했다. Room 스키마 경로 이동 전후 바이트 동일·TaskCodec JSON key 동일·applicationId/DB version/key 유지 확인. 원래 앱 데이터나 사진을 초기화하지 않았다.
+- 화면: Gradle 정리 후 합성 QA 화면 확보를 위해 앱/큰 글꼴 두 테스트만 adb instrument로 추가 실행(2개 성공). 홈·보정·확정 기록·다크 큰 글꼴 스크린샷 직접 확인. 이미지는 로컬 임시 저장, 미커밋. 단면 정확도/현장 성능 자료가 아니다.
+- 구조/명명 리뷰: 주요 파일명·패키지 경로·금지 import 방향, shared UI의 데이터/callback 계약, readonly 기록, 상태/Job/세대/저장 단계/좌표 단위, 모델 속성과 영속 key 유지 확인. 임시 경로/import 비교 스크립트를 사용했으며 패키지 규칙이 Gradle로 강제된다고 보고하지 않는다.
+- 문서 링크·git diff --check 통과. 기존 CodeRabbit의 UI 경로를 feature/navigation으로 맞추고 컨벤션 참조 추가. YAML 파싱 및 minimatch의 feature/navigation/data 경로 표본 확인. 원격 CodeRabbit 리뷰 적용은 미검증.
+- 중간 컴파일에서 이동 후 import 누락 등을 수정했으며 최종 위 검증 통과. 자동 승인 검토가 불확실한 메서드 제외 필터 실행을 거절해, 아래처럼 허용 클래스/메서드를 명시했다. 최종 실행 목록에 Hough 프로토타입이 없는 것을 확인했다. 검출 코드는 알고리즘 변경 없이 파일 위치/import/포맷만 정리했다. 추가 앱 흐름 테스트에서 배경 삭제 모드와 다이얼로그 버튼이 함께 검색돼 실패한 선택자를 Dialog 범위로 한정해 수정했고, 삭제/읽기 전용 검증까지 최종 앱 테스트가 통과했다.
+
+대표 실행 명령(기존 Java17 환경, 자동 검출 실험을 제외한 명시적 선택):
+
+```sh
+./gradlew spotlessCheck assembleDebug testDebugUnitTest lintDebug
+./gradlew connectedDebugAndroidTest \
+  '-Pandroid.testInstrumentationRunnerArguments.class=io.github.kyujin0911.pounter.AppUiTest,io.github.kyujin0911.pounter.LargeFontUiTest,io.github.kyujin0911.pounter.NavigationUiTest,io.github.kyujin0911.pounter.RepositoryInstrumentedTest#importEditReloadConfirmAndDelete,io.github.kyujin0911.pounter.RepositoryInstrumentedTest#staleRevisionCannotOverwriteSavedChanges,io.github.kyujin0911.pounter.RepositoryInstrumentedTest#interruptedDeletionIsCompletedOnStartup,io.github.kyujin0911.pounter.RepositoryInstrumentedTest#invalidInputDoesNotReplaceExistingRecord,io.github.kyujin0911.pounter.RepositoryInstrumentedTest#cancellationAfterInsertKeepsReferencedPhoto,io.github.kyujin0911.pounter.RepositoryInstrumentedTest#legacyVersionOneDatabaseAndPayloadReopenWithoutMigration'
+```
+
+### 미검증·다음 확인
+
+- Galaxy S22+/Android16 실기기 미연결. 실제 선택·촬영/취소·보정·확정/삭제를 실행해야 한다.
+- 실제 기기 회전, OS 메모리 회수/백그라운드 프로세스 종료 후 Recents 복원, force-stop/런처 재시작은 별도 미검증. Activity 재생성·SavedStateHandle JVM 테스트를 대신한 증거로 사용하지 않는다. 위 Navigation 검증 절의 최소 확인 절차를 따른다.
+- 실제 TalkBack·삼성 시스템 입력 UI·백업/기기 이전·현장 300개/5%/5초 미검증. 자동 계수는 검증 대기 상태 그대로다.
+- Android Studio IDE Sync/개별 기기 화면과 원격 CodeRabbit 설정/PR 적용은 미검증. 이후 원격 운영은 사용자 요청 범위에 따른다.
