@@ -25,7 +25,7 @@ import kotlin.math.*
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun PhotoPanel(state: CountUiState,mode: EditMode,showNumbers: Boolean,dispatch: (CountAction)->Unit) {
+fun PhotoPanel(state: CountUiState,mode: EditMode,showNumbers: Boolean,dispatch: (CountAction)->Unit,readOnly: Boolean=false) {
     val task=state.task ?: return
     val bitmap=state.preview
     var zoom by remember(task.id) { mutableFloatStateOf(1f) }
@@ -38,7 +38,7 @@ fun PhotoPanel(state: CountUiState,mode: EditMode,showNumbers: Boolean,dispatch:
     val currentGeometry by rememberUpdatedState(geometry)
     val currentTask by rememberUpdatedState(task)
     val currentDispatch by rememberUpdatedState(dispatch)
-    val enabled=!state.busy && !task.confirmed && task.analyzed
+    val enabled=!readOnly && !state.busy && !state.unsavedChanges && !task.confirmed && task.analyzed
     val raster=remember(bitmap) { bitmap?.asImageBitmap() }
     val numberPaint=remember { android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
         color=android.graphics.Color.WHITE; textAlign=android.graphics.Paint.Align.CENTER; typeface=android.graphics.Typeface.DEFAULT_BOLD

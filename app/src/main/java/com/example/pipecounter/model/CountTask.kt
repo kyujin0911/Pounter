@@ -1,16 +1,20 @@
 package com.example.pipecounter.model
 
 import kotlin.math.hypot
+import kotlinx.serialization.Serializable
 
+@Serializable
 data class Region(val left: Float = 0f, val top: Float = 0f, val right: Float = 1f, val bottom: Float = 1f) {
     init { require(listOf(left, top, right, bottom).all { it.isFinite() && it in 0f..1f } && left < right && top < bottom) }
     fun contains(x: Float, y: Float) = x in left..right && y in top..bottom
 }
 
+@Serializable
 data class Marker(val id: String, val x: Float, val y: Float, val radius: Float, val manual: Boolean = false) {
     init { require(x.isFinite() && y.isFinite() && x in 0f..1f && y in 0f..1f && radius.isFinite() && radius > 0f) }
 }
 
+@Serializable
 data class CountTask(
     val id: String, val photoName: String, val width: Int, val height: Int,
     val createdAt: Long, val updatedAt: Long = createdAt, val revision: Long = 0,

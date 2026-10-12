@@ -10,11 +10,12 @@ import com.example.pipecounter.model.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 import java.util.UUID
+import kotlinx.serialization.json.Json
 
 sealed interface CountAction {
     data class Import(val uri: Uri): CountAction
-    data class Open(val id: String): CountAction
-    data object Home: CountAction
+    data object ImportHandled: CountAction
+    data object RetrySave: CountAction
     data object Analyze: CountAction
     data object CancelAnalysis: CountAction
     data object BeginManual: CountAction
@@ -31,6 +32,8 @@ data class CountUiState(
     val records: List<CountTask> = emptyList(), val task: CountTask? = null,
     val preview: Bitmap? = null, val operation: Operation = Operation.LOADING,
     val message: String? = null,
+    val importedTaskId: String? = null, val unavailable: Boolean = false,
+    val deleted: Boolean = false, val unsavedChanges: Boolean = false,
 ) { val busy: Boolean get() = operation != Operation.NONE }
 
 class CountViewModel(private val repository: CountRepository, private val saved: SavedStateHandle) : ViewModel() {
@@ -38,6 +41,7 @@ class CountViewModel(private val repository: CountRepository, private val saved:
     val uiState: StateFlow<CountUiState> = mutable.asStateFlow()
     private var analysis: Job? = null
     private var generation=0L
+    private var pendingSave: CountTask? = null
     init {
         viewModelScope.launch {
             repository.tasks.catch { e -> mutable.update { it.copy(message=e.message ?: "기록을 읽을 수 없습니다.") } }
@@ -45,11 +49,24 @@ class CountViewModel(private val repository: CountRepository, private val saved:
         }
         viewModelScope.launch {
             try {
+                mutable.update { it.copy(importedTaskId=saved["importedTaskId"]) }
                 val id=saved.get<String>("taskId")
                 if(id!=null) {
                     val task=repository.get(id)
+                    mutable.update { it.copy(task=task,unavailable=task==null,
+                        message=if(task==null) "기록을 찾을 수 없습니다. 삭제된 작업일 수 있습니다." else null) }
+                    val pending=saved.get<String>("pendingSave")?.let { Json.decodeFromString<CountTask>(it) }
+                    if(task!=null && pending?.id==task.id) {
+                        val alreadyStored=pending.copy(revision=task.revision,updatedAt=task.updatedAt)==task
+                        if(alreadyStored) saved["pendingSave"]=null
+                        else {
+                            pendingSave=pending
+                            mutable.update { it.copy(task=if(pending.confirmed) task else pending,unsavedChanges=true,
+                                message="저장되지 않은 변경을 복원했습니다. 저장을 재시도해주세요.") }
+                        }
+                    }
                     val preview=task?.let { repository.preview(it) }
-                    mutable.update { it.copy(task=task,preview=preview) }
+                    mutable.update { it.copy(preview=preview) }
                 }
             } catch(e: CancellationException) { throw e }
             catch(e: Exception) { mutable.update { it.copy(message=e.message ?: "작업 복원에 실패했습니다.") } }
@@ -66,24 +83,17 @@ class CountViewModel(private val repository: CountRepository, private val saved:
             return
         }
         if(mutable.value.busy) return
+        if(mutable.value.unsavedChanges && action!=CountAction.RetrySave && action!=CountAction.ImportHandled) return
         when(action) {
-            CountAction.Home -> {
-                generation++; saved["taskId"]=null
-                mutable.update { it.copy(task=null,preview=null,message=null) }
+            CountAction.ImportHandled -> {
+                saved["importedTaskId"]=null
+                mutable.update { it.copy(importedTaskId=null) }
             }
-            is CountAction.Open -> runOperation(Operation.LOADING) {
-                val task=repository.get(action.id) ?: error("기록을 찾을 수 없습니다.")
-                val bitmap=repository.preview(task)
-                saved["taskId"]=task.id
-                mutable.update { it.copy(task=task,preview=bitmap,message=null) }
-            }
+            CountAction.RetrySave -> pendingSave?.let { persist(it) }
             is CountAction.Import -> runOperation(Operation.LOADING) {
                 val task=repository.import(action.uri)
-                // Persist selection before decoding: an interrupted preview still has a recoverable task.
-                saved["taskId"]=task.id
-                mutable.update { it.copy(task=task,preview=null,message=null) }
-                val bitmap=repository.preview(task)
-                mutable.update { it.copy(preview=bitmap) }
+                saved["importedTaskId"]=task.id
+                mutable.update { it.copy(importedTaskId=task.id,message=null) }
             }
             CountAction.Analyze -> startAnalysis()
             CountAction.BeginManual -> modify { task ->
@@ -103,8 +113,7 @@ class CountViewModel(private val repository: CountRepository, private val saved:
                 val task=mutable.value.task ?: return
                 runOperation(Operation.SAVING) {
                     repository.delete(task)
-                    saved["taskId"]=null
-                    mutable.update { it.copy(task=null,preview=null,message="기록을 삭제했습니다.") }
+                    mutable.update { it.copy(deleted=true,message="기록을 삭제했습니다.") }
                 }
             }
             else -> Unit
@@ -113,11 +122,23 @@ class CountViewModel(private val repository: CountRepository, private val saved:
     private fun modify(transform: (CountTask)->CountTask) {
         val task=mutable.value.task ?: return
         if(task.confirmed) return
-        runOperation(Operation.SAVING) {
+        try {
             val next=transform(task)
-            if(next==task) return@runOperation
+            if(next==task) return
+            // Confirmation is visible only after durable success; edits remain visible on failure.
+            if(!next.confirmed) mutable.update { it.copy(task=next) }
+            persist(next)
+        } catch(e: Exception) { mutable.update { it.copy(message=e.message ?: "변경할 수 없습니다.") } }
+    }
+    private fun persist(next: CountTask) {
+        pendingSave=next
+        saved["pendingSave"]=Json.encodeToString(next)
+        mutable.update { it.copy(unsavedChanges=true) }
+        runOperation(Operation.SAVING) {
             val stored=repository.save(next)
-            mutable.update { it.copy(task=stored,message=null) }
+            pendingSave=null
+            saved["pendingSave"]=null
+            mutable.update { it.copy(task=stored,message=null,unsavedChanges=false) }
         }
     }
     private fun startAnalysis() {

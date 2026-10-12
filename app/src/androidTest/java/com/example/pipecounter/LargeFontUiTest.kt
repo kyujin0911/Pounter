@@ -17,7 +17,7 @@ class LargeFontUiTest {
     @Test fun darkHomeAtTwoHundredPercentKeepsActionsReachable() {
         rule.setContent {
             CompositionLocalProvider(LocalDensity provides Density(2f,2f)) {
-                PipeTheme(dark=true) {PipeApp(CountUiState(operation=Operation.NONE),{}, {}, {})}
+                PipeTheme(dark=true) {HomeScreen(CountUiState(operation=Operation.NONE),{}, {}, {})}
             }
         }
         rule.onNodeWithTag("content").performScrollToNode(hasText("사진 촬영"))

@@ -22,11 +22,14 @@ class CountViewModelTest {
         override val tasks=MutableStateFlow(listOf(stored))
         var fail=false
         var saves=0
+        var failDelete=false
+        var failPreview=false
+        var imported: CountTask?=null
         var delayResult: CompletableDeferred<Detection>? = null
         var delayedSave: CompletableDeferred<Unit>? = null
         override suspend fun get(id: String)=stored.takeIf {it.id==id}
-        override suspend fun preview(task: CountTask): Bitmap? = null
-        override suspend fun import(uri: Uri): CountTask = error("import failed")
+        override suspend fun preview(task: CountTask): Bitmap? { if(failPreview) error("사진 읽기 실패"); return null }
+        override suspend fun import(uri: Uri): CountTask = imported ?: error("import failed")
         override suspend fun save(task: CountTask): CountTask {
             saves++
             delayedSave?.await()
@@ -36,7 +39,7 @@ class CountViewModelTest {
             tasks.value=listOf(stored)
             return stored
         }
-        override suspend fun delete(task: CountTask) {tasks.value=emptyList()}
+        override suspend fun delete(task: CountTask) {if(failDelete) error("삭제 실패");tasks.value=emptyList()}
         override suspend fun detect(task: CountTask): Detection {
             val deferred=delayResult ?: return Detection(emptyList(),1L)
             return withContext(NonCancellable) {deferred.await()}
@@ -50,12 +53,14 @@ class CountViewModelTest {
         val repo=FakeRepository();val vm=open(repo)
         assertEquals(repo.stored,vm.uiState.value.task);assertEquals(Operation.NONE,vm.uiState.value.operation)
     }
-    @Test fun failedSaveKeepsPreviousMarkersAndAllowsRetry()=runTest(dispatcher) {
+    @Test fun failedSaveKeepsUnsavedMarkersAndRetriesTheSameChange()=runTest(dispatcher) {
         val repo=FakeRepository();val vm=open(repo)
         repo.fail=true;vm.dispatch(CountAction.Add(.5f,.5f));runCurrent()
-        assertEquals(0,vm.uiState.value.task!!.count);assertEquals("저장 공간 부족",vm.uiState.value.message)
-        repo.fail=false;vm.dispatch(CountAction.Add(.5f,.5f));runCurrent()
+        assertEquals(1,vm.uiState.value.task!!.count);assertEquals("저장 공간 부족",vm.uiState.value.message)
+        assertTrue(vm.uiState.value.unsavedChanges);assertEquals(0,repo.stored.count)
+        repo.fail=false;vm.dispatch(CountAction.RetrySave);runCurrent()
         assertEquals(1,vm.uiState.value.task!!.count);assertEquals(repo.stored,vm.uiState.value.task)
+        assertFalse(vm.uiState.value.unsavedChanges)
     }
     @Test fun duplicateConfirmIsIgnoredDuringDurableSave()=runTest(dispatcher) {
         val repo=FakeRepository();val vm=open(repo);repo.delayedSave=CompletableDeferred()
@@ -80,6 +85,47 @@ class CountViewModelTest {
         vm.dispatch(CountAction.Analyze);runCurrent()
         assertEquals(0,vm.uiState.value.task!!.count);assertFalse(vm.uiState.value.task!!.confirmed)
         assertTrue(vm.uiState.value.message!!.contains("검출된 파이프가 없습니다"))
+    }
+    @Test fun failedConfirmationDoesNotExposeConfirmedStateUntilRetrySucceeds()=runTest(dispatcher) {
+        val repo=FakeRepository();val vm=open(repo)
+        repo.fail=true;vm.dispatch(CountAction.Confirm);runCurrent()
+        assertFalse(vm.uiState.value.task!!.confirmed);assertTrue(vm.uiState.value.unsavedChanges)
+        repo.fail=false;vm.dispatch(CountAction.RetrySave);runCurrent()
+        assertTrue(vm.uiState.value.task!!.confirmed);assertFalse(vm.uiState.value.unsavedChanges)
+    }
+    @Test fun missingRouteIdExposesRecoveryInsteadOfHomeOrAnotherTask()=runTest(dispatcher) {
+        val vm=CountViewModel(FakeRepository(),SavedStateHandle(mapOf("taskId" to "missing")))
+        runCurrent()
+        assertTrue(vm.uiState.value.unavailable);assertNull(vm.uiState.value.task)
+        assertTrue(vm.uiState.value.message!!.contains("기록을 찾을 수 없습니다"))
+    }
+    @Test fun previewFailureKeepsLoadedTaskAndItsMarkers()=runTest(dispatcher) {
+        val repo=FakeRepository();repo.stored=repo.stored.edit(listOf(Marker("m",.5f,.5f,.02f,true)))
+        repo.failPreview=true;val vm=open(repo)
+        assertEquals(repo.stored,vm.uiState.value.task);assertFalse(vm.uiState.value.unavailable)
+        assertEquals("사진 읽기 실패",vm.uiState.value.message)
+    }
+    @Test fun failedEditRestoresFromSavedStateAndRetriesWithoutAddingAgain()=runTest(dispatcher) {
+        val repo=FakeRepository();val saved=SavedStateHandle(mapOf("taskId" to "task"))
+        val vm=CountViewModel(repo,saved);runCurrent()
+        repo.fail=true;vm.dispatch(CountAction.Add(.5f,.5f));runCurrent()
+        val restored=CountViewModel(repo,SavedStateHandle(mapOf("taskId" to "task","pendingSave" to saved.get<String>("pendingSave"))))
+        runCurrent();assertEquals(1,restored.uiState.value.task!!.count)
+        assertTrue(restored.uiState.value.unsavedChanges)
+        repo.fail=false;restored.dispatch(CountAction.RetrySave);runCurrent()
+        assertEquals(1,repo.stored.count);assertFalse(restored.uiState.value.unsavedChanges)
+    }
+    @Test fun deletionFailureDoesNotSignalNavigationSuccess()=runTest(dispatcher) {
+        val repo=FakeRepository();val vm=open(repo)
+        repo.failDelete=true;vm.dispatch(CountAction.Delete);runCurrent()
+        assertFalse(vm.uiState.value.deleted);assertNotNull(vm.uiState.value.task)
+        repo.failDelete=false;vm.dispatch(CountAction.Delete);runCurrent()
+        assertTrue(vm.uiState.value.deleted)
+    }
+    @Test fun confirmedRecordRejectsEditing()=runTest(dispatcher) {
+        val repo=FakeRepository();repo.stored=repo.stored.confirm(2L)
+        val vm=open(repo);vm.dispatch(CountAction.Add(.5f,.5f));runCurrent()
+        assertEquals(0,repo.saves);assertTrue(vm.uiState.value.task!!.confirmed)
     }
     @Test fun validationGateReturnsErrorWithoutOverwritingWork()=runTest(dispatcher) {
         assertFalse(DETECTOR_VALIDATED)

@@ -53,6 +53,9 @@ class AppUiTest {
         scrollTo("되돌리기");rule.onNodeWithText("되돌리기").performClick()
         rule.waitUntil(5000) {runBlocking {app.repository.get(task.id)?.count==1}}
         scrollTo("현재 개수")
+        rule.activityRule.scenario.recreate()
+        scrollTo("현재 개수");rule.onNodeWithText("현재 개수").assertIsDisplayed()
+        rule.waitUntil(5000) {runBlocking {app.repository.get(task.id)?.count==1}}
         screenshot("review")
         scrollTo("1개 확인하고 확정");rule.onNodeWithText("1개 확인하고 확정").performClick()
         rule.onNodeWithText("확정 저장").performClick()

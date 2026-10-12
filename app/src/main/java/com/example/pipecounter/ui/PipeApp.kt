@@ -26,28 +26,54 @@ import java.util.Locale
 private fun timestamp(time: Long) = SimpleDateFormat("MM.dd HH:mm",Locale.KOREA).format(Date(time))
 enum class EditMode { VIEW, ADD, DELETE }
 
+@Composable
+fun HomeScreen(state: CountUiState,dispatch: (CountAction)->Unit,onPick: ()->Unit,onCamera: ()->Unit,
+               inputError: String?=null,onClearInputError: ()->Unit={},onOpen: (CountTask)->Unit={}) {
+    PipeScreen(state,dispatch,onPick,onCamera,inputError,onClearInputError,onOpen=onOpen)
+}
+
+@Composable
+fun CountWorkScreen(state: CountUiState,dispatch: (CountAction)->Unit,onPick: ()->Unit,onCamera: ()->Unit,
+                    inputError: String?=null,onClearInputError: ()->Unit={},onBack: ()->Unit={}) {
+    PipeScreen(state,dispatch,onPick,onCamera,inputError,onClearInputError,detail=true,onBack=onBack)
+}
+
+@Composable
+fun RecordScreen(state: CountUiState,dispatch: (CountAction)->Unit,onPick: ()->Unit,onCamera: ()->Unit,
+                 inputError: String?=null,onClearInputError: ()->Unit={},onBack: ()->Unit={}) {
+    PipeScreen(state,dispatch,onPick,onCamera,inputError,onClearInputError,detail=true,readOnly=true,onBack=onBack)
+}
+
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun PipeApp(state: CountUiState, dispatch: (CountAction)->Unit, onPick: ()->Unit, onCamera: ()->Unit,
-            inputError: String? = null,onClearInputError: ()->Unit = {}) {
+private fun PipeScreen(state: CountUiState, dispatch: (CountAction)->Unit, onPick: ()->Unit, onCamera: ()->Unit,
+            inputError: String?,onClearInputError: ()->Unit,detail: Boolean=false,readOnly: Boolean=false,
+            onOpen: (CountTask)->Unit={},onBack: ()->Unit={}) {
     var dialog by rememberSaveable { mutableStateOf<String?>(null) }
-    var mode by remember(state.task?.id) { mutableStateOf(EditMode.VIEW) }
-    var showNumbers by remember(state.task?.id) { mutableStateOf(true) }
+    var mode by rememberSaveable { mutableStateOf(EditMode.VIEW) }
+    var showNumbers by rememberSaveable { mutableStateOf(true) }
     val task=state.task
-    BackHandler(task!=null || state.busy) {
-        if(state.operation==Operation.ANALYZING) dispatch(CountAction.CancelAnalysis)
-        else if(!state.busy) dispatch(CountAction.Home)
+    val editable=!state.busy && !state.unsavedChanges
+    fun back() {
+        when {
+            state.operation==Operation.ANALYZING -> dispatch(CountAction.CancelAnalysis)
+            state.busy -> Unit
+            state.unsavedChanges -> dialog="unsaved"
+            else -> onBack()
+        }
     }
+    // NavHost owns ordinary Back. Intercept only operations that must not lose work.
+    BackHandler(state.busy || state.unsavedChanges) { back() }
     Scaffold(containerColor=MaterialTheme.colorScheme.background) { insets ->
         LazyColumn(Modifier.fillMaxSize().padding(insets).imePadding().testTag("content"),
             contentPadding=PaddingValues(16.dp),verticalArrangement=Arrangement.spacedBy(16.dp)) {
             item {
                 Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
-                        Text(if(task==null) "파이프 계수" else if(task.confirmed) "검수 기록" else "사진 확인",fontSize=22.sp,fontWeight=FontWeight.Bold)
-                        Text(if(task==null) "사진으로 확인하고, 기록으로 남기세요" else "${timestamp(task.createdAt)} · 기기 내부 저장",style=MaterialTheme.typography.bodyMedium,color=MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(if(!detail) "파이프 계수" else if(task==null) "작업 불러오기" else if(task.confirmed) "검수 기록" else "사진 확인",fontSize=22.sp,fontWeight=FontWeight.Bold)
+                        Text(if(!detail) "사진으로 확인하고, 기록으로 남기세요" else task?.let { "${timestamp(it.createdAt)} · 기기 내부 저장" }.orEmpty(),style=MaterialTheme.typography.bodyMedium,color=MaterialTheme.colorScheme.onSurfaceVariant)
                     }
-                    if(task!=null) TextButton(onClick={dispatch(CountAction.Home)},enabled=!state.busy) { Text("기록 목록") }
+                    if(detail) TextButton(onClick={back()},enabled=!state.busy || state.operation==Operation.ANALYZING) { Text("기록 목록") }
                 }
             }
             if(state.busy) item {
@@ -59,6 +85,10 @@ fun PipeApp(state: CountUiState, dispatch: (CountAction)->Unit, onPick: ()->Unit
                     }
                 }
             }
+            if(state.unsavedChanges && !state.busy) item {
+                Text("저장되지 않은 변경이 있습니다. 저장을 재시도한 뒤 이동해주세요.")
+                Button(onClick={dispatch(CountAction.RetrySave)}) { Text("저장 재시도") }
+            }
             if(state.message!=null || inputError!=null) item {
                 Card(colors=CardDefaults.cardColors(containerColor=MaterialTheme.colorScheme.errorContainer)) {
                     Column(Modifier.padding(16.dp)) {
@@ -67,15 +97,20 @@ fun PipeApp(state: CountUiState, dispatch: (CountAction)->Unit, onPick: ()->Unit
                     }
                 }
             }
-            if(task==null) {
+            if(detail && task==null) {
+                if(!state.busy) item {
+                    Text(state.message ?: "작업을 표시할 수 없습니다.")
+                    Button(onClick=onBack) { Text("목록으로 돌아가기") }
+                }
+            } else if(!detail) {
                 item {
                     Card(Modifier.fillMaxWidth(),colors=CardDefaults.cardColors(containerColor=MaterialTheme.colorScheme.primaryContainer)) {
                         Column(Modifier.padding(20.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
                             Text("새 물량 확인",style=MaterialTheme.typography.headlineSmall,fontWeight=FontWeight.Bold)
                             Text("파이프 단면 전체가 보이도록 정면에서 촬영해주세요. 한 묶음, 비슷한 지름, 가림 없는 사진이 기준입니다.")
                             FlowRow(horizontalArrangement=Arrangement.spacedBy(8.dp),verticalArrangement=Arrangement.spacedBy(8.dp)) {
-                                Button(onClick=onCamera,enabled=!state.busy,modifier=Modifier.heightIn(min=56.dp)) { Text("사진 촬영") }
-                                OutlinedButton(onClick=onPick,enabled=!state.busy,modifier=Modifier.heightIn(min=56.dp)) { Text("사진 선택") }
+                                Button(onClick=onCamera,enabled=editable,modifier=Modifier.heightIn(min=56.dp)) { Text("사진 촬영") }
+                                OutlinedButton(onClick=onPick,enabled=editable,modifier=Modifier.heightIn(min=56.dp)) { Text("사진 선택") }
                             }
                         }
                     }
@@ -94,7 +129,7 @@ fun PipeApp(state: CountUiState, dispatch: (CountAction)->Unit, onPick: ()->Unit
                     }
                 }
                 items(state.records,key={it.id}) { record ->
-                    Card(onClick={if(!state.busy)dispatch(CountAction.Open(record.id))},modifier=Modifier.fillMaxWidth()) {
+                    Card(onClick={if(!state.busy)onOpen(record)},modifier=Modifier.fillMaxWidth()) {
                         Row(Modifier.padding(16.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(16.dp)) {
                             Surface(color=MaterialTheme.colorScheme.primaryContainer,shape=MaterialTheme.shapes.medium) {
                                 Text(if(record.analyzed) "${record.count}" else "—",Modifier.padding(16.dp),fontSize=28.sp,fontWeight=FontWeight.Bold)
@@ -108,7 +143,7 @@ fun PipeApp(state: CountUiState, dispatch: (CountAction)->Unit, onPick: ()->Unit
                     }
                 }
                 item { Text("기록은 이 기기에만 보관됩니다. 앱 데이터 삭제 또는 앱 제거 시 사라집니다.",style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant) }
-            } else {
+            } else if(task!=null) {
                 item {
                     Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(16.dp)) {
                         Text("${task.count}",fontSize=40.sp,fontWeight=FontWeight.Bold,color=MaterialTheme.colorScheme.primary)
@@ -120,7 +155,7 @@ fun PipeApp(state: CountUiState, dispatch: (CountAction)->Unit, onPick: ()->Unit
                     }
                 }
                 item {
-                    PhotoPanel(state,mode,showNumbers,dispatch)
+                    PhotoPanel(state,if(readOnly) EditMode.VIEW else mode,showNumbers,dispatch,readOnly)
                 }
                 item {
                     Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
@@ -128,12 +163,12 @@ fun PipeApp(state: CountUiState, dispatch: (CountAction)->Unit, onPick: ()->Unit
                         Switch(checked=showNumbers,onCheckedChange={showNumbers=it})
                     }
                 }
-                if(!task.confirmed) {
+                if(!readOnly && !task.confirmed) {
                     item {
                         FlowRow(horizontalArrangement=Arrangement.spacedBy(8.dp),verticalArrangement=Arrangement.spacedBy(8.dp)) {
-                            OutlinedButton(onClick={dialog="region"},enabled=!state.busy) { Text("계수 영역") }
-                            OutlinedButton(onClick={if(task.markers.isNotEmpty()) dialog="reanalyze" else dispatch(CountAction.Analyze)},enabled=!state.busy) { Text("자동 계수 상태") }
-                            if(!task.analyzed) Button(onClick={dispatch(CountAction.BeginManual);mode=EditMode.ADD},enabled=!state.busy) { Text("수동 표시 시작") }
+                            OutlinedButton(onClick={dialog="region"},enabled=editable) { Text("계수 영역") }
+                            OutlinedButton(onClick={if(task.markers.isNotEmpty()) dialog="reanalyze" else dispatch(CountAction.Analyze)},enabled=editable) { Text("자동 계수 상태") }
+                            if(!task.analyzed) Button(onClick={dispatch(CountAction.BeginManual);mode=EditMode.ADD},enabled=editable) { Text("수동 표시 시작") }
                         }
                     }
                     item { ValidationNotice() }
@@ -142,28 +177,33 @@ fun PipeApp(state: CountUiState, dispatch: (CountAction)->Unit, onPick: ()->Unit
                             Column(verticalArrangement=Arrangement.spacedBy(8.dp)) {
                                 Text("표시 보정",style=MaterialTheme.typography.titleMedium,fontWeight=FontWeight.Bold)
                                 FlowRow(horizontalArrangement=Arrangement.spacedBy(8.dp),verticalArrangement=Arrangement.spacedBy(8.dp)) {
-                                    FilterChip(selected=mode==EditMode.VIEW,onClick={mode=EditMode.VIEW},label={Text("이동")},enabled=!state.busy)
-                                    FilterChip(selected=mode==EditMode.ADD,onClick={mode=EditMode.ADD},label={Text("추가")},enabled=!state.busy)
-                                    FilterChip(selected=mode==EditMode.DELETE,onClick={mode=EditMode.DELETE},label={Text("삭제")},enabled=!state.busy)
-                                    OutlinedButton(onClick={dispatch(CountAction.Undo)},enabled=!state.busy && task.undo!=null) { Text("되돌리기") }
+                                    FilterChip(selected=mode==EditMode.VIEW,onClick={mode=EditMode.VIEW},label={Text("이동")},enabled=editable)
+                                    FilterChip(selected=mode==EditMode.ADD,onClick={mode=EditMode.ADD},label={Text("추가")},enabled=editable)
+                                    FilterChip(selected=mode==EditMode.DELETE,onClick={mode=EditMode.DELETE},label={Text("삭제")},enabled=editable)
+                                    OutlinedButton(onClick={dispatch(CountAction.Undo)},enabled=editable && task.undo!=null) { Text("되돌리기") }
                                 }
                                 Text(when(mode) { EditMode.ADD->"단면 중심을 눌러 표시를 추가하세요. 원형은 자동, 사각형은 수동 표시입니다."; EditMode.DELETE->"삭제할 표시를 누르세요. 겹친 표시는 목록에서 선택할 수 있습니다."; else->"두 손가락으로 확대하고 사진을 이동할 수 있습니다." },style=MaterialTheme.typography.bodySmall)
                             }
                         }
                         item {
-                            Button(onClick={dialog="confirm"},enabled=!state.busy,modifier=Modifier.fillMaxWidth().heightIn(min=56.dp)) { Text("${task.count}개 확인하고 확정") }
+                            Button(onClick={dialog="confirm"},enabled=editable,modifier=Modifier.fillMaxWidth().heightIn(min=56.dp)) { Text("${task.count}개 확인하고 확정") }
                         }
                     }
                 }
                 item {
                     FlowRow(horizontalArrangement=Arrangement.spacedBy(8.dp),verticalArrangement=Arrangement.spacedBy(8.dp)) {
-                        OutlinedButton(onClick=onPick,enabled=!state.busy) { Text("다른 사진 선택") }
-                        OutlinedButton(onClick=onCamera,enabled=!state.busy) { Text("새 사진 촬영") }
-                        TextButton(onClick={dialog="delete"},enabled=!state.busy) { Text("이 기록 삭제",color=MaterialTheme.colorScheme.error) }
+                        OutlinedButton(onClick=onPick,enabled=editable) { Text("다른 사진 선택") }
+                        OutlinedButton(onClick=onCamera,enabled=editable) { Text("새 사진 촬영") }
+                        TextButton(onClick={dialog="delete"},enabled=editable) { Text("이 기록 삭제",color=MaterialTheme.colorScheme.error) }
                     }
                     Text("새 사진은 별도 작업으로 저장되며 이 기록은 유지됩니다.",style=MaterialTheme.typography.bodySmall)
                 }
             }
+        }
+    }
+    if(dialog=="unsaved") {
+        ConfirmDialog("저장되지 않은 변경", "현재 변경을 유지하고 있습니다. 저장을 재시도한 뒤 목록으로 이동해주세요.","저장 재시도",{dialog=null}) {
+            dialog=null; dispatch(CountAction.RetrySave)
         }
     }
     if(task!=null && dialog!=null) {
@@ -206,4 +246,4 @@ fun PipeApp(state: CountUiState, dispatch: (CountAction)->Unit, onPick: ()->Unit
 }
 
 @Preview(showBackground=true)
-@Composable private fun HomePreview() { PipeTheme { PipeApp(CountUiState(operation=Operation.NONE),{}, {}, {}) } }
+@Composable private fun HomePreview() { PipeTheme { HomeScreen(CountUiState(operation=Operation.NONE),{}, {}, {}) } }
