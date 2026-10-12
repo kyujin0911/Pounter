@@ -86,3 +86,10 @@
 - Git: codex/pipe-counting-plan 이력을 보존하고 codex/navigation-flow에서 이번 파일만 로컬 커밋. main 생성/병합·push·PR 없음.
 - 사용자 보고: 대표 실기기는 갤럭시 S22+, Android 16. 연결·실행·속도 확인 사실이 아님.
 - 검증: 이번 실행 결과와 한계는 검증 이력에 별도 기록. 기존 앱 테스트/합성 원 검출을 새 자동 계수 성능으로 확대하지 않음.
+
+## D-12 Pounter 이름과 앱 식별자
+
+- 날짜/상태: 2026-10-12 / 사용자 확정·변경 요청.
+- 결정: Gradle 프로젝트명·앱 표시 이름 Pounter, 기본 패키지·namespace·applicationId는 io.github.kyujin0911.pounter. 소스 폴더는 이미 사용자에 의해 Pounter로 이동됨.
+- 적용: main/test/androidTest 패키지와 import, 테마·앱 이름 리소스, Room 스키마 경로를 함께 변경. DB 버전·테이블·identityHash는 유지. 기존 이력의 패키지명/명령은 당시 증거로 보존.
+- 경계: 새 앱 ID는 별도 설치 앱으로 식별. 이전 앱 데이터 자동 이전·제거·초기화는 수행하지 않음. 자동 검출 구현·실험·원격 push는 이번 범위 밖.

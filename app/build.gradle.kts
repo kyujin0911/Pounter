@@ -6,11 +6,11 @@ plugins {
     id("com.google.devtools.ksp")
 }
 android {
-    namespace = "com.example.pipecounter"
+    namespace = "io.github.kyujin0911.pounter"
     compileSdk = 35
     buildToolsVersion = "36.1.0"
     defaultConfig {
-        applicationId = "com.example.pipecounter"
+        applicationId = "io.github.kyujin0911.pounter"
         minSdk = 26
         targetSdk = 35
         versionCode = 1

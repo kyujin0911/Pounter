@@ -65,3 +65,18 @@
 - 실제 TalkBack/삼성 시스템 입력 UI/백업·기기 이전 동작은 미검증. 현장 300개·5%·5초와 복합 OpenCV는 이번 검증 범위 밖.
 
 SavedStateHandle 복원 경계의 공식 근거: [Saved State 모듈](https://developer.android.com/topic/libraries/architecture/viewmodel/viewmodel-savedstate). 검출 성능은 계속 PRD 인수 조건과 실제 정면 자료로 별도 평가한다.
+
+## Pounter 이름 변경 검증 — 2026-10-12
+
+- 프로젝트명·표시 이름 Pounter, main/test/androidTest 패키지·namespace·applicationId io.github.kyujin0911.pounter로 변경. DB 스키마 경로 이동 전후 내용 동일 확인.
+- assembleDebug·testDebugUnitTest(19개)·lintDebug 성공. Lint 오류 0, 경고 26.
+- Small_Phone API 36 관련 기기 테스트 15개 통과. 합성 원 검출은 제외했으며 검출 구현·실험 없음. Navigation·수동 보정·Room/파일 저장·재열기·삭제·Activity 재생성 확인.
+- 생성 APK의 applicationId·MainActivity 패키지·표시 이름을 aapt2로 확인. FileProvider는 applicationId 기반 authority 유지.
+- Android Studio IDE 화면의 Sync/프로젝트명 표시, 실제 S22+·삼성 카메라·OS 프로세스 종료·기존 앱에서 새 앱으로 데이터 이전은 미검증. SDK 위치·DB 버전·기존 앱 데이터는 변경하지 않음.
+
+이번 기기 실행 명령:
+
+```sh
+./gradlew connectedDebugAndroidTest \
+  '-Pandroid.testInstrumentationRunnerArguments.notClass=io.github.kyujin0911.pounter.RepositoryInstrumentedTest#prototypeLoadsNativeLibraryAndDetectsSyntheticCircles'
+```
