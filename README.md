@@ -1,12 +1,14 @@
 # 파이프 계수 — Android 체험 앱
 
+현재 작업은 기획 문서 저장이다. 최신 요구사항은 [PRD](PRD.md), 채택된 비AI 검출은 [자동 계수 설계](docs/auto_counting.md), 화면은 [디자인 명세](docs/design_spec.md)를 따른다. 아래 코드 상태·실행 흐름은 기존 커밋의 구현 이력이며 최신 계획의 완료 상태가 아니다. 새 구현은 별도 요청 후 진행한다.
+
 Kotlin / Jetpack Compose / Room / 화면 단위 MVI로 만든 오프라인 사진 검수 앱입니다.
 
-**현재 상태: 수동 표시·보정·기록 앱 구현. 자동 계수 MVP는 미완료(검출 검증 대기).**
+**기존 코드 상태: 수동 표시·보정·기록 앱 존재. 최신 OpenCV 복합 자동 계수는 미구현·미검증.**
 
 제공된 현장 사진 3장에서 초기 원형 검출이 바닥·반사를 과검출했습니다. 사용자 결정에 따라 정면 촬영 조건을 유지하며 추가 사진으로 검증한 뒤 자동 검출을 적용합니다. 앱은 `ValidationRequiredDetector`를 사용합니다. `HoughPipeDetector`는 androidTest에만 둔 독립 검증용 프로토타입이며 앱의 자동 계수기로 활성화하지 않았습니다. OpenCV는 테스트 APK에만 포함됩니다. 합성 원 테스트를 현장 정확도 근거로 사용하지 않습니다.
 
-## 실행
+## 기존 코드 실행 안내 — 이번 문서 작업에서는 실행하지 않음
 
 Android Studio에서 이 폴더를 열고 Gradle Sync 후 `app`을 실행합니다. Android 8.0(API 26) 이상이 필요합니다. 최초 빌드는 Google Maven/Maven Central 접근이 필요하며, 앱 실행에는 인터넷·로그인·서버가 필요하지 않습니다.
 
@@ -17,7 +19,7 @@ Android Studio에서 이 폴더를 열고 Gradle Sync 후 `app`을 실행합니�
 
 디버그 APK: `app/build/outputs/apk/debug/app-debug.apk`
 
-## 사용 흐름
+## 기존 코드 사용 흐름 — 최신 목표 흐름은 PRD 참조
 
 1. 사진 선택 또는 시스템 카메라 촬영.
 2. 필요하면 계수 영역을 조절하고 `수동 표시 시작`.
@@ -27,7 +29,7 @@ Android Studio에서 이 폴더를 열고 Gradle Sync 후 `app`을 실행합니�
 
 사진과 보정은 앱 내부에 저장됩니다. 새 사진은 새 작업으로 저장하며 이전 기록을 덮어쓰지 않습니다. 앱 제거·앱 데이터 삭제 시 기록이 사라집니다. 클라우드 백업과 기기 전송 백업을 제외합니다. 원본 갤러리 사진은 수정하지 않습니다.
 
-## 구조·문서
+## 기존 코드 구조·문서
 
 - UI: `CountAction → CountViewModel → StateFlow<CountUiState> → Compose`.
 - 데이터: `CountRepository → Room + PhotoStore + PipeDetector`.
