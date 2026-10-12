@@ -8,7 +8,9 @@ import android.net.Uri
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.captureToImage
+import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.isDialog
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
@@ -98,6 +100,16 @@ class AppUiTest {
         scrollTo("되돌리기")
         rule.onNodeWithText("되돌리기").performClick()
         rule.waitUntil(5000) { runBlocking { app.repository.get(task.id)?.count == 1 } }
+        // Shared photo callback must still reach Count VM and durable repository storage.
+        scrollTo("표시 목록 1개")
+        rule.onNodeWithText("표시 목록 1개").performClick()
+        rule
+            .onNode(hasText("삭제") and hasAnyAncestor(isDialog()), useUnmergedTree = true)
+            .performClick()
+        rule.waitUntil(5000) { runBlocking { app.repository.get(task.id)?.count == 0 } }
+        scrollTo("이 위치에 추가")
+        rule.onNodeWithText("이 위치에 추가").performClick()
+        rule.waitUntil(5000) { runBlocking { app.repository.get(task.id)?.count == 1 } }
         scrollTo("현재 개수")
         rule.activityRule.scenario.recreate()
         scrollTo("현재 개수")
@@ -113,6 +125,12 @@ class AppUiTest {
         rule.onNodeWithText("검수 기록").assertIsDisplayed()
         rule.onNodeWithText("수동 표시 시작").assertDoesNotExist()
         screenshot("confirmed")
+        scrollTo("표시 목록 1개")
+        rule.onNodeWithText("표시 목록 1개").performClick()
+        rule
+            .onNode(hasText("삭제") and hasAnyAncestor(isDialog()), useUnmergedTree = true)
+            .assertDoesNotExist()
+        rule.onNodeWithText("닫기").performClick()
         scrollTo("기록 목록")
         rule.onNodeWithText("기록 목록").performClick()
         scrollTo("확정됨 · 1개")
