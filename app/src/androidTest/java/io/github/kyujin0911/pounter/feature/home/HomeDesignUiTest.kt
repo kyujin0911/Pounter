@@ -1,11 +1,24 @@
 package io.github.kyujin0911.pounter.feature.home
 
+import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.ui.test.*
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.assertWidthIsEqualTo
+import androidx.compose.ui.test.hasAnyAncestor
+import androidx.compose.ui.test.hasTestTag
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollToNode
+import androidx.compose.ui.unit.dp
 import io.github.kyujin0911.pounter.core.model.CountTask
 import io.github.kyujin0911.pounter.core.ui.theme.PipeTheme
-import io.github.kyujin0911.pounter.feature.shared.*
+import io.github.kyujin0911.pounter.feature.shared.PhotoImportUiState
+import io.github.kyujin0911.pounter.feature.shared.designTask
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
@@ -66,5 +79,22 @@ class HomeDesignUiTest {
         check("zero", "0개")
         check("zero", "확인 전")
         check("done", "사용자 확인 완료")
+    }
+
+    @Test
+    fun rootKeepsCallerTagWidthAndSingleClick() {
+        var clicks = 0
+        rule.setContent {
+            PipeTheme {
+                RecordCard(
+                    designTask(),
+                    true,
+                    { clicks++ },
+                    Modifier.width(240.dp).testTag("caller-root"),
+                )
+            }
+        }
+        rule.onNodeWithTag("caller-root").assertWidthIsEqualTo(240.dp).performClick()
+        assertEquals(1, clicks)
     }
 }

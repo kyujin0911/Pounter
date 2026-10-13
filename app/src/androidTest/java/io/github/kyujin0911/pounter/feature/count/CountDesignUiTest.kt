@@ -1,13 +1,32 @@
 package io.github.kyujin0911.pounter.feature.count
 
-import androidx.compose.runtime.*
+import androidx.compose.foundation.layout.width
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.test.*
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.test.assertHeightIsAtLeast
+import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.assertIsNotSelected
+import androidx.compose.ui.test.assertIsSelected
+import androidx.compose.ui.test.assertTextEquals
+import androidx.compose.ui.test.assertWidthIsEqualTo
+import androidx.compose.ui.test.hasTestTag
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import io.github.kyujin0911.pounter.core.ui.theme.PipeTheme
-import io.github.kyujin0911.pounter.feature.shared.*
+import io.github.kyujin0911.pounter.feature.shared.EditMode
+import io.github.kyujin0911.pounter.feature.shared.designTask
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
@@ -16,7 +35,8 @@ class CountDesignUiTest {
     @get:Rule val rule = createComposeRule()
 
     private fun scroll(tag: String) {
-        rule.onNodeWithTag("content").performScrollToNode(hasTestTag(tag))
+        if (runCatching { rule.onNodeWithTag(tag).assertIsDisplayed() }.isFailure)
+            rule.onNodeWithTag("content").performScrollToNode(hasTestTag(tag))
     }
 
     @Test
@@ -128,5 +148,23 @@ class CountDesignUiTest {
         rule.onNodeWithTag("content").performScrollToNode(hasText("저장 재시도"))
         rule.onNodeWithText("저장 재시도").assertIsDisplayed().performClick()
         assertEquals(listOf(CountAction.RetrySave), actions)
+    }
+
+    @Test
+    fun rootKeepsCallerTagWidthAndSingleClick() {
+        var clicks = 0
+        rule.setContent {
+            PipeTheme {
+                ConfirmAction(
+                    12,
+                    true,
+                    false,
+                    { clicks++ },
+                    Modifier.width(240.dp).testTag("caller-root"),
+                )
+            }
+        }
+        rule.onNodeWithTag("caller-root").assertWidthIsEqualTo(240.dp).performClick()
+        assertEquals(1, clicks)
     }
 }

@@ -1,8 +1,8 @@
 # Pounter Compose 컴포넌트 규칙과 설계
 
-작성일: 2026-10-13. 상태: 공식 문서 조사·컴포넌트 계약 설계 / 코드 적용 대기.
+작성일: 2026-10-13. 상태: 컴포넌트·패키지·독립 Preview 코드 적용 / 실행 결과는 검증 이력 참조.
 
-[디자인 시스템](design_system.md)의 UI 재사용 기준을 구체화한다. [구현 계획](superpowers/plans/2026-10-13-design-system-implementation.md)의 컴포넌트 API는 본 문서와 함께 따른다. 패키지 위치·의존 방향·승격 절차는 [코드 컨벤션](code_conventions.md#재사용-ui의-패키지-관리--2026-10-13-추가)을 따른다. 제품 범위·보존·이동은 PRD와 화면 명세가 우선한다. 아래 Kotlin은 구현할 계약이며 실행한 코드가 아니다. 서명 예제의 가시성은 생략했고 구현 시 코드 컨벤션의 internal/private 기준을 따른다.
+[디자인 시스템](design_system.md)의 UI 재사용 기준을 구체화한다. [구현 계획](superpowers/plans/2026-10-13-design-system-implementation.md)의 컴포넌트 API는 본 문서와 함께 따른다. 패키지 위치·의존 방향·승격 절차는 [코드 컨벤션](code_conventions.md#재사용-ui의-패키지-관리--2026-10-13-추가)을 따른다. 제품 범위·보존·이동은 PRD와 화면 명세가 우선한다. 아래 Kotlin은 적용한 API 계약의 요약이다. 서명 예제의 가시성은 생략했으며 신규 컴포넌트는 internal, debug Preview/fixture는 private로 둔다. 기존 화면/PhotoPanel의 공개 API는 유지한다.
 
 ## 1. 공식 근거와 적용 범위
 
@@ -34,7 +34,7 @@
 
 ## 3. 현재 UI 재사용 조사와 배치
 
-현재 checkout의 ui/PipeApp.kt/PhotoPanel.kt와 저장된 구조 변경 SHA 64f4700의 feature 소스를 읽었다. 아래 구현 위치는 계획과 같은 구조 변경 적용 후 기준이다. 원격 서버 최신 상태·앱 실행은 이번 조사에 포함하지 않는다.
+조사는 이전 ui/PipeApp.kt/PhotoPanel.kt와 저장된 구조 변경 SHA 64f4700을 기준으로 시작했고, 현재 아래 위치에 적용했다. 초기 조사와 후속 실행 검증은 [검증 이력](verification.md#2026-10-13-디자인-시스템-구현)으로 구분한다.
 
 | 대상 | 실제/계획 사용처 | 설계 결정 | 위치 |
 |---|---|---|---|
@@ -49,7 +49,7 @@
 
 같은 배경이라는 이유로 기록 카드와 입력 카드를 하나의 다목적 Card로 합치지 않는다. NoticeCard의 공통점은 제목/본문/조작을 가진 안내 구조이며, 정보/오류라는 두 의미만 받는다. 로딩 indicator와 취소, 오류 재시도는 슬롯 호출자의 명시적 UI다.
 
-## 4. 구현할 API 계약
+## 4. 적용한 API 계약
 
 ### StatusLabel: 업무별 도메인과 UI 표현 분리
 
@@ -142,4 +142,4 @@ PhotoInputCard/RecordCard는 계획의 값·이벤트·modifier 계약 유지. C
 - 합성 fixture만으로 라이트/다크·미분석/0/300·저장 실패·읽기 전용 Preview. VM·Room·실제 파일·네트워크 없이 구성. Preview는 실행 테스트와 구분.
 - 기존 저장/복원/겹친 표시·대체 입력 회귀와 큰 글꼴/터치 검증은 디자인 구현 계획에 통합한다. 인터페이스 중복·외부 modifier 무시·도메인 객체 변경 여부는 diff 리뷰.
 
-이번 문서 검증은 원문 조사·계약/사용처/계획 일치·로컬 링크·diff 검사까지다. 테스트 파일·앱 코드·Preview 구현은 아직 하지 않았다.
+현재 계약 테스트는 대상 컴포넌트 패키지, 통합 테스트는 루트, 합성 fixture는 androidTest/feature/shared, Preview는 src/debug/.../preview에 둔다. NoticeCard 슬롯 수명·외부 Modifier·부모 소유 모드·상태 구분과 기존 저장/복원 회귀를 검증한다. 실제 실행 수와 미실행 항목은 검증 이력을 따른다.

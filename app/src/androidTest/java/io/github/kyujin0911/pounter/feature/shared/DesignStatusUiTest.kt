@@ -1,7 +1,11 @@
 package io.github.kyujin0911.pounter.feature.shared
 
-import androidx.compose.ui.test.*
+import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
 import io.github.kyujin0911.pounter.core.ui.theme.PipeTheme
 import org.junit.Assert.assertEquals
 import org.junit.Rule
