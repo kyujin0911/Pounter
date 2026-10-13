@@ -19,6 +19,7 @@ data class CountTask(
     val analysisMillis: Long? = null,
     val confirmedAt: Long? = null,
     val deleted: Boolean = false,
+    val analysisMetadata: AnalysisMetadata? = null,
 ) {
     val count: Int
         get() = markers.size
@@ -42,6 +43,7 @@ data class CountTask(
             undo = null,
             analyzed = false,
             analysisMillis = null,
+            analysisMetadata = null,
         )
     }
 
