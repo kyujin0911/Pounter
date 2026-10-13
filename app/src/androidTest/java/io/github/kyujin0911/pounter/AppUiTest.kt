@@ -9,6 +9,7 @@ import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.hasAnyAncestor
+import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isDialog
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
@@ -133,8 +134,8 @@ class AppUiTest {
         rule.onNodeWithText("닫기").performClick()
         scrollTo("기록 목록")
         rule.onNodeWithText("기록 목록").performClick()
-        scrollTo("확정됨 · 1개")
-        rule.onNodeWithText("확정됨 · 1개").performClick()
+        rule.onNodeWithTag("content").performScrollToNode(hasTestTag("record-${task.id}"))
+        rule.onNodeWithTag("record-${task.id}").performClick()
         scrollTo("검수 기록")
         rule.onNodeWithText("검수 기록").assertIsDisplayed()
         scrollTo("이 기록 삭제")

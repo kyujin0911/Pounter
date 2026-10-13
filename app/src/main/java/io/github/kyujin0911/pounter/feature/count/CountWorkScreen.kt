@@ -1,56 +1,27 @@
 package io.github.kyujin0911.pounter.feature.count
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Slider
-import androidx.compose.material3.Switch
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import io.github.kyujin0911.pounter.core.model.CountTask
 import io.github.kyujin0911.pounter.core.model.Region
 import io.github.kyujin0911.pounter.core.ui.components.ConfirmDialog
 import io.github.kyujin0911.pounter.core.ui.components.MessageCard
 import io.github.kyujin0911.pounter.core.ui.components.ProgressCard
-import io.github.kyujin0911.pounter.feature.shared.CountSummary
-import io.github.kyujin0911.pounter.feature.shared.DetailPhotoActions
-import io.github.kyujin0911.pounter.feature.shared.EditMode
-import io.github.kyujin0911.pounter.feature.shared.PhotoImportUiState
-import io.github.kyujin0911.pounter.feature.shared.PhotoPanel
-import io.github.kyujin0911.pounter.feature.shared.TaskHeader
-import io.github.kyujin0911.pounter.feature.shared.ValidationNotice
+import io.github.kyujin0911.pounter.core.ui.theme.PipeDimensions
+import io.github.kyujin0911.pounter.feature.shared.*
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -78,164 +49,194 @@ fun CountWorkScreen(
             else -> onBack()
         }
     }
-    // NavHost owns ordinary Back. Intercept only operations that must not lose work.
     BackHandler(isBusy || state.unsavedChanges) { goBack() }
     val message = inputError ?: photoImportState.message ?: state.message
-    Scaffold(containerColor = MaterialTheme.colorScheme.background) { insets ->
-        LazyColumn(
-            Modifier.fillMaxSize().padding(insets).imePadding().testTag("content"),
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-        ) {
-            item { TaskHeader(task, !isBusy || state.operation == Operation.ANALYZING, ::goBack) }
-            if (isBusy)
-                item {
-                    ProgressCard(
-                        when (state.operation) {
-                            Operation.ANALYZING -> "분석 중"
-                            Operation.SAVING -> "변경 사항 저장 중"
-                            else -> "사진과 기록을 불러오는 중"
-                        },
-                        onCancel =
-                            if (state.operation == Operation.ANALYZING) {
-                                { dispatch(CountAction.CancelAnalysis) }
-                            } else null,
-                    )
-                }
-            if (state.unsavedChanges && !isBusy)
-                item {
-                    Text("저장되지 않은 변경이 있습니다. 저장을 재시도한 뒤 이동해주세요.")
-                    Button(onClick = { dispatch(CountAction.RetrySave) }) { Text("저장 재시도") }
-                }
-            if (message != null)
-                item {
-                    MessageCard(
-                        message,
-                        onDismiss = {
-                            dispatch(CountAction.ClearMessage)
-                            onClearInputError()
-                        },
-                    )
-                }
-            if (task == null) {
-                if (!isBusy)
-                    item {
-                        Text(state.message ?: "작업을 표시할 수 없습니다.")
-                        Button(onClick = onBack) { Text("목록으로 돌아가기") }
-                    }
-            } else {
-                item { CountSummary(task) }
-                item {
-                    PhotoPanel(
-                        task = task,
-                        bitmap = state.preview,
-                        mode = mode,
-                        showNumbers = showNumbers,
-                        canEdit = canEdit && !task.confirmed && task.analyzed,
-                        isLoading = isBusy,
-                        onAddMarker = { normalizedX, normalizedY ->
-                            dispatch(CountAction.Add(normalizedX, normalizedY))
-                        },
-                        onRemoveMarkers = { markerIds -> dispatch(CountAction.Remove(markerIds)) },
-                    )
-                }
-                item {
-                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                        Text("번호 표시", Modifier.weight(1f))
-                        Switch(checked = showNumbers, onCheckedChange = { showNumbers = it })
-                    }
-                }
-                if (!task.confirmed) {
-                    item {
-                        FlowRow(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp),
+    BoxWithConstraints(Modifier.fillMaxSize()) {
+        val density = LocalDensity.current
+        val safeHeight =
+            with(density) {
+                (WindowInsets.safeDrawing.getTop(this) + WindowInsets.safeDrawing.getBottom(this))
+                    .toDp()
+            }
+        val contentHeightDp = (maxHeight - safeHeight).value.coerceAtLeast(1f)
+        val contentWidthDp =
+            (minOf(maxWidth, PipeDimensions.readingMaxWidth) - PipeDimensions.screenInset * 2)
+                .value
+                .coerceAtLeast(1f)
+        val pinConfirm = shouldPinConfirmAction(contentHeightDp, density.fontScale)
+        val showConfirm = task != null && task.analyzed && !task.confirmed
+        Scaffold(
+            containerColor = MaterialTheme.colorScheme.background,
+            bottomBar = {
+                if (pinConfirm && showConfirm && task != null)
+                    Surface {
+                        Box(
+                            Modifier.fillMaxWidth()
+                                .navigationBarsPadding()
+                                .padding(PipeDimensions.screenInset),
+                            contentAlignment = Alignment.Center,
                         ) {
-                            OutlinedButton(onClick = { dialog = "region" }, enabled = canEdit) {
-                                Text("계수 영역")
-                            }
-                            OutlinedButton(
-                                onClick = {
-                                    if (task.markers.isNotEmpty()) dialog = "reanalyze"
-                                    else dispatch(CountAction.Analyze)
-                                },
-                                enabled = canEdit,
-                            ) {
-                                Text("자동 계수 상태")
-                            }
-                            if (!task.analyzed)
-                                Button(
-                                    onClick = {
-                                        dispatch(CountAction.BeginManual)
-                                        mode = EditMode.ADD
-                                    },
-                                    enabled = canEdit,
-                                ) {
-                                    Text("수동 표시 시작")
-                                }
+                            ConfirmAction(
+                                task.count,
+                                canEdit,
+                                state.operation == Operation.SAVING,
+                                { dialog = "confirm" },
+                                Modifier.widthIn(max = PipeDimensions.readingMaxWidth),
+                            )
                         }
                     }
-                    item { ValidationNotice() }
-                    if (task.analyzed) {
+            },
+        ) { insets ->
+            Box(Modifier.fillMaxSize().padding(insets), contentAlignment = Alignment.TopCenter) {
+                LazyColumn(
+                    Modifier.widthIn(max = PipeDimensions.readingMaxWidth)
+                        .fillMaxSize()
+                        .imePadding()
+                        .testTag("content"),
+                    contentPadding = PaddingValues(PipeDimensions.screenInset),
+                    verticalArrangement = Arrangement.spacedBy(PipeDimensions.groupGap),
+                ) {
+                    item {
+                        TaskHeader(
+                            task,
+                            !isBusy || state.operation == Operation.ANALYZING,
+                            ::goBack,
+                        )
+                    }
+                    if (isBusy)
                         item {
-                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                Text(
-                                    "표시 보정",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.Bold,
-                                )
-                                FlowRow(
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                                ) {
-                                    FilterChip(
-                                        selected = mode == EditMode.VIEW,
-                                        onClick = { mode = EditMode.VIEW },
-                                        label = { Text("이동") },
-                                        enabled = canEdit,
-                                    )
-                                    FilterChip(
-                                        selected = mode == EditMode.ADD,
-                                        onClick = { mode = EditMode.ADD },
-                                        label = { Text("추가") },
-                                        enabled = canEdit,
-                                    )
-                                    FilterChip(
-                                        selected = mode == EditMode.DELETE,
-                                        onClick = { mode = EditMode.DELETE },
-                                        label = { Text("삭제") },
-                                        enabled = canEdit,
-                                    )
-                                    OutlinedButton(
-                                        onClick = { dispatch(CountAction.Undo) },
-                                        enabled = canEdit && task.undo != null,
-                                    ) {
-                                        Text("되돌리기")
-                                    }
-                                }
-                                Text(
-                                    when (mode) {
-                                        EditMode.ADD ->
-                                            "단면 중심을 눌러 표시를 추가하세요. 원형은 자동, 사각형은 수동 표시입니다."
-                                        EditMode.DELETE -> "삭제할 표시를 누르세요. 겹친 표시는 목록에서 선택할 수 있습니다."
-                                        else -> "두 손가락으로 확대하고 사진을 이동할 수 있습니다."
-                                    },
-                                    style = MaterialTheme.typography.bodySmall,
-                                )
+                            ProgressCard(
+                                when (state.operation) {
+                                    Operation.ANALYZING -> "분석 중"
+                                    Operation.SAVING -> "변경 사항 저장 중"
+                                    else -> "사진과 기록을 불러오는 중"
+                                },
+                                onCancel =
+                                    if (state.operation == Operation.ANALYZING) {
+                                        { dispatch(CountAction.CancelAnalysis) }
+                                    } else null,
+                            )
+                        }
+                    if (state.unsavedChanges && !isBusy)
+                        item { RecoveryNotice("저장되지 않은 변경", { dispatch(CountAction.RetrySave) }) }
+                    if (message != null)
+                        item {
+                            MessageCard(
+                                message,
+                                onDismiss = {
+                                    dispatch(CountAction.ClearMessage)
+                                    onClearInputError()
+                                },
+                            )
+                        }
+                    if (task == null) {
+                        if (!isBusy)
+                            item {
+                                Text(state.message ?: "작업을 표시할 수 없습니다.")
+                                Button(onClick = onBack) { Text("목록으로 돌아가기") }
                             }
+                    } else {
+                        item(key = "summary-${task.id}") { CountSummary(task) }
+                        item(key = "photo-${task.id}") {
+                            PhotoPanel(
+                                task,
+                                state.preview,
+                                mode,
+                                showNumbers,
+                                canEdit && !task.confirmed && task.analyzed,
+                                isBusy,
+                                viewportHeight =
+                                    photoViewportHeightDp(
+                                            contentHeightDp,
+                                            contentWidthDp,
+                                            task.width.toFloat() / task.height,
+                                        )
+                                        .dp,
+                                onAddMarker = { x, y -> dispatch(CountAction.Add(x, y)) },
+                                onRemoveMarkers = { ids -> dispatch(CountAction.Remove(ids)) },
+                            )
                         }
                         item {
-                            Button(
-                                onClick = { dialog = "confirm" },
-                                enabled = canEdit,
-                                modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
+                            Row(
+                                Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
                             ) {
-                                Text("${task.count}개 확인하고 확정")
+                                Text(
+                                    "번호 표시",
+                                    Modifier.weight(1f),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                )
+                                Switch(
+                                    showNumbers,
+                                    { showNumbers = it },
+                                    modifier = Modifier.semantics { contentDescription = "번호 표시" },
+                                )
                             }
                         }
+                        if (!task.confirmed) {
+                            item {
+                                FlowRow(
+                                    horizontalArrangement =
+                                        Arrangement.spacedBy(PipeDimensions.controlGap),
+                                    verticalArrangement =
+                                        Arrangement.spacedBy(PipeDimensions.controlGap),
+                                ) {
+                                    OutlinedButton(
+                                        onClick = { dialog = "region" },
+                                        enabled = canEdit,
+                                    ) {
+                                        Text("계수 영역")
+                                    }
+                                    OutlinedButton(
+                                        onClick = {
+                                            if (task.markers.isNotEmpty()) dialog = "reanalyze"
+                                            else dispatch(CountAction.Analyze)
+                                        },
+                                        enabled = canEdit,
+                                    ) {
+                                        Text("자동 계수 상태")
+                                    }
+                                    if (!task.analyzed)
+                                        Button(
+                                            onClick = {
+                                                dispatch(CountAction.BeginManual)
+                                                mode = EditMode.ADD
+                                            },
+                                            enabled = canEdit,
+                                            modifier =
+                                                Modifier.heightIn(
+                                                    min = PipeDimensions.primaryActionMinHeight
+                                                ),
+                                        ) {
+                                            Text("수동 표시 시작")
+                                        }
+                                }
+                            }
+                            item { ValidationNotice() }
+                            if (task.analyzed) {
+                                item {
+                                    CorrectionToolbar(
+                                        mode,
+                                        canEdit,
+                                        task.undo != null,
+                                        { mode = it },
+                                        { dispatch(CountAction.Undo) },
+                                    )
+                                }
+                                if (!pinConfirm)
+                                    item {
+                                        ConfirmAction(
+                                            task.count,
+                                            canEdit,
+                                            state.operation == Operation.SAVING,
+                                            { dialog = "confirm" },
+                                        )
+                                    }
+                            }
+                        }
+                        item { DetailPhotoActions(canEdit, onPick, onCamera) { dialog = "delete" } }
                     }
                 }
-                item { DetailPhotoActions(canEdit, onPick, onCamera) { dialog = "delete" } }
             }
         }
     }

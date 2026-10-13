@@ -37,8 +37,11 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
@@ -58,6 +61,8 @@ fun PhotoPanel(
     showNumbers: Boolean,
     canEdit: Boolean,
     isLoading: Boolean,
+    modifier: Modifier = Modifier,
+    viewportHeight: Dp = 340.dp,
     onAddMarker: (Float, Float) -> Unit = { _, _ -> },
     onRemoveMarkers: (Set<String>) -> Unit = {},
 ) {
@@ -97,13 +102,15 @@ fun PhotoPanel(
             typeface = android.graphics.Typeface.DEFAULT_BOLD
         }
     }
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Surface(shape = MaterialTheme.shapes.large, color = Color(0xFF111827)) {
             Canvas(
                 Modifier.fillMaxWidth()
-                    .height(340.dp)
+                    .height(viewportHeight)
+                    .testTag("photo-viewport")
                     .onSizeChanged { viewportSizePx = it }
                     .semantics {
+                        stateDescription = "확대 ${zoom}배"
                         contentDescription =
                             "계수 사진. ${task.count}개 표시. 아래 확대와 표시 목록, 위치 조절 버튼으로도 사용할 수 있습니다."
                     }
@@ -293,7 +300,7 @@ fun PhotoPanel(
         if (mode == EditMode.ADD && canEdit) {
             Text(
                 "추가 위치: 가로 ${(normalizedCursor.x * 100).roundToInt()}%, 세로 ${(normalizedCursor.y * 100).roundToInt()}%",
-                style = MaterialTheme.typography.bodySmall,
+                style = MaterialTheme.typography.bodyMedium,
             )
             FlowRow(
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
