@@ -123,7 +123,7 @@ fun DetailPhotoActions(
 )
 ```
 
-PhotoPanel의 modifier는 전체 Column, viewportHeight는 Canvas에만 적용한다. 대화상자의 modifier는 AlertDialog에 적용한다. DetailPhotoActions의 여러 UI 루트는 하나의 Column으로 묶어 modifier를 정확히 한 번 적용한다. 기존 ConfirmDialog/DetailPhotoActions의 trailing lambda 호출은 onConfirm/onDelete 명명 인자로 바꿔 마지막 Modifier 인자 추가와 충돌하지 않게 한다. 앱 내부 계약은 코드 컨벤션에 따라 internal을 기본으로 하며 오래된 중복 overload를 남기지 않고 호출부·테스트를 함께 갱신한다.
+PhotoPanel의 modifier는 전체 Column, viewportHeight는 Canvas에만 적용한다. 크기가 바뀌면 확대 배율은 유지하고 기존 이동량을 새 영역의 허용 범위로 제한한다. 같은 작업의 일반 보정 때 확대/이동을 초기화하지 않는다. 대화상자의 modifier는 AlertDialog에 적용한다. DetailPhotoActions의 여러 UI 루트는 하나의 Column으로 묶어 modifier를 정확히 한 번 적용한다. 기존 ConfirmDialog/DetailPhotoActions의 trailing lambda 호출은 onConfirm/onDelete 명명 인자로 바꿔 마지막 Modifier 인자 추가와 충돌하지 않게 한다. 앱 내부 계약은 코드 컨벤션에 따라 internal을 기본으로 하며 오래된 중복 overload를 남기지 않고 호출부·테스트를 함께 갱신한다.
 
 PhotoInputCard/RecordCard는 계획의 값·이벤트·modifier 계약 유지. CorrectionToolbar/ConfirmAction은 feature/count에 둔다. PhotoLayout은 계수·완료 양쪽이 사진 높이 계산을 사용하므로 feature/shared에 둔다. 같은 기능에서만 쓰는 UI를 shared로 승격하지 않는다. PhotoPanel은 높이를 받으므로 계수·완료 화면이 필요한 배치를 계산해 전달한다.
 

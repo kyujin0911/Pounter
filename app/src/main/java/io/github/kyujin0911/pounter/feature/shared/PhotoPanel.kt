@@ -108,7 +108,19 @@ fun PhotoPanel(
                 Modifier.fillMaxWidth()
                     .height(viewportHeight)
                     .testTag("photo-viewport")
-                    .onSizeChanged { viewportSizePx = it }
+                    .onSizeChanged { size ->
+                        val resizedGeometry =
+                            PhotoGeometry(
+                                task.width,
+                                task.height,
+                                size.width.toFloat().coerceAtLeast(1f),
+                                size.height.toFloat().coerceAtLeast(1f),
+                                zoom,
+                            )
+                        val clampedPan = resizedGeometry.clampPan(panPx.x, panPx.y)
+                        viewportSizePx = size
+                        panPx = Offset(clampedPan.first, clampedPan.second)
+                    }
                     .semantics {
                         stateDescription = "확대 ${zoom}배"
                         contentDescription =

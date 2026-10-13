@@ -20,6 +20,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipe
 import androidx.compose.ui.unit.dp
 import io.github.kyujin0911.pounter.core.model.Marker
 import io.github.kyujin0911.pounter.core.ui.theme.PipeTheme
@@ -128,5 +129,64 @@ class PhotoPanelDesignUiTest {
         rule.runOnIdle { mode = EditMode.ADD }
         rule.onNodeWithText("이 위치에 추가").performScrollTo().performClick()
         assertEquals(1, added)
+    }
+
+    @Test
+    fun zoomedPannedPhotoStaysTouchableWhenViewportShrinks() {
+        var height by mutableStateOf(340.dp)
+        val added = mutableListOf<Pair<Float, Float>>()
+        val task = designTask(analyzed = true).copy(width = 650, height = 650)
+        val bitmap = designBitmap()
+        rule.setContent {
+            PipeTheme {
+                Column(Modifier.verticalScroll(rememberScrollState())) {
+                    PhotoPanel(
+                        task,
+                        bitmap,
+                        EditMode.ADD,
+                        false,
+                        true,
+                        false,
+                        viewportHeight = height,
+                        onAddMarker = { x, y -> added += x to y },
+                    )
+                }
+            }
+        }
+        repeat(5) { rule.onNodeWithText("확대").performScrollTo().performClick() }
+        rule.onNodeWithTag("photo-viewport").performScrollTo()
+        repeat(5) {
+            rule.onNodeWithTag("photo-viewport").performTouchInput {
+                swipe(center * .3f, center * 1.7f, durationMillis = 200)
+            }
+        }
+        rule.runOnIdle { height = 180.dp }
+        rule.onNodeWithTag("photo-viewport").performScrollTo()
+        rule
+            .onNodeWithTag("photo-viewport")
+            .assert(
+                SemanticsMatcher.expectValue(
+                    androidx.compose.ui.semantics.SemanticsProperties.StateDescription,
+                    "확대 6.0배",
+                )
+            )
+        rule.onNodeWithTag("photo-viewport").performTouchInput { click(center) }
+        assertEquals("resized photo must still cover the center touch", 1, added.size)
+        val viewport = rule.onNodeWithTag("photo-viewport").fetchSemanticsNode().size
+        val geometry =
+            PhotoGeometry(
+                task.width,
+                task.height,
+                viewport.width.toFloat(),
+                viewport.height.toFloat(),
+                6f,
+            )
+        val edgePan = geometry.clampPan(Float.MAX_VALUE, Float.MAX_VALUE)
+        val expected =
+            geometry
+                .copy(panXPx = edgePan.first, panYPx = edgePan.second)
+                .imagePoint(viewport.width / 2f, viewport.height / 2f)!!
+        assertEquals(expected.first, added.single().first, .02f)
+        assertEquals(expected.second, added.single().second, .02f)
     }
 }

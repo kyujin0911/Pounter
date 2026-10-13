@@ -147,3 +147,10 @@ API36.1의 기존 Espresso는 `InputManager.getInstance` reflection 오류로 UI
 6. 기존에 통과한 읽기 전용/사진 실패/삭제 잠금에 인위적 실패를 만들지 않았다. 새 대화상자 Modifier 계약을 실패 단계로 사용했다.
 7. 외부 Modifier와 200% 추가 테스트가 수정 전 통과하여 UI를 불필요하게 바꾸지 않았다. 명시적 import를 적용하고 전체 컴파일/검증으로 전환 누락을 수정했다.
 8. 현장·보조 기술·마커 밀도 평가는 실행한 범위와 분리했다. 잘못 판단하면 현장 사용성 문제가 남을 수 있으므로 위 최소 확인 절차를 후속 조건으로 둔다.
+
+
+### 최종 독립 리뷰와 수정
+
+새 컨텍스트의 Android/Compose 리뷰어가 `9e03aba..d7bee10` 전체 변경을 읽었다. Critical/Minor 없음, Important 1건: 확대·이동한 사진 영역 축소 시 이전 이동 한계가 남아 사진이 영역 밖으로 밀리는 문제. `zoomedPannedPhotoStaysTouchableWhenViewportShrinks`에서 6배 확대·모서리 이동·340→180dp 축소 후 중심 터치 callback 0회 실패를 실제 기기 테스트로 관찰했다. PhotoPanel의 onSizeChanged에서 기존 PhotoGeometry.clampPan을 새 크기로 적용한 후 callback 1회, 정규화 좌표 일치, 확대 6배 유지가 통과했다. 사진 관련 4개 테스트 통과 후 `./gradlew assembleDebug testDebugUnitTest lintDebug spotlessCheck connectedDebugAndroidTest` 전체 실행도 BUILD SUCCESSFUL: JVM30개·기기41개 통과, 실패/오류/건너뜀 0. 이것이 리뷰 수정 후 최종 결과다.
+
+리뷰에서 판정을 보류한 기존 번호 밀도와 실제 TalkBack/현장/프로세스 종료 항목은 위 제한을 유지한다. 번호 표시 방식은 이번에 바꾸지 않으며 다음 수락 조건이다. 영역 축소 보정은 범위 안의 기존 이동량을 유지하고 넘은 값만 제한하는 최소 수정이다. 정규화 중심을 항상 고정하는 새 변환은 추가하지 않았다. 크기 축소로 이동 한계가 줄어드는 만큼 중심은 이동할 수 있으나 확대를 초기화하지 않고 사진과 터치 좌표를 일치시킨다.
