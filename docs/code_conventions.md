@@ -1,6 +1,6 @@
 # Pounter 코드 컨벤션
 
-갱신일: 2026-10-12. 파일·책임·패키지·명명·포맷팅 규칙의 단일 기준이다. 제품 범위는 [PRD](../PRD.md), 작업 승인과 검증은 [AGENTS](../AGENTS.md), Git 단위는 [Git 운영 규칙](git_workflow.md)을 따른다. 이번 구조 작업은 [Issue #1](https://github.com/kyujin0911/Pounter/issues/1)에 연결한다.
+갱신일: 2026-10-13. 파일·책임·패키지·명명·포맷팅 규칙의 단일 기준이다. 제품 범위는 [PRD](../PRD.md), 작업 승인과 검증은 [AGENTS](../AGENTS.md), Git 단위는 [Git 운영 규칙](git_workflow.md)을 따른다. 이번 구조 작업은 [Issue #1](https://github.com/kyujin0911/Pounter/issues/1)에 연결한다.
 
 ## 책임과 패키지
 
@@ -19,7 +19,7 @@
 | core/model | CountTask, Region, Marker: 화면과 데이터가 공유하는 불변 모델·규칙 | 특정 화면 Action/UiState·Room Entity |
 | core/ui/theme | PipeTheme: 앱 공통 테마 | feature 구현 |
 | navigation | 타입 안전 경로·NavHost·entry 소유권·Activity Result launcher 연결 | 영속 데이터 저장·검출 |
-| di (향후) | 별도 승인된 Koin 작업에서 객체 생성·등록·수명 | 이번에는 파일·빈 패키지·의존성 추가 없음 |
+| di | AppModule: 객체 생성·연결·수명 선언 | 화면 상태 전환·저장 복구·검출·Navigation 로직 |
 
 실제 책임이 없는 디렉터리는 만들지 않는다. 한 파일 때문에 반복적으로 하위 패키지를 만들거나 util/common/base에 배치가 어려운 코드를 모으지 않는다. PhotoGeometry는 사진 컴포넌트 가까이 둔다. Repository 인터페이스는 기존 테스트/교체 경계로 유지하며 별도 domain/UseCase/DTO를 강제하지 않는다.
 
@@ -29,7 +29,8 @@
 - 서로 다른 feature는 상대 Screen/ViewModel 구현을 직접 참조하지 않는다. 공유 구현은 실제 재사용될 때 feature/shared에 둔다.
 - navigation → 각 feature 화면·ViewModel을 연결한다. NavController는 UI 계층에만 둔다.
 - data/core → feature/navigation/di 의존을 금지한다. data에서 필요한 shared 모델은 core/model에 둔다.
-- 의미 없는 BaseViewModel/BaseRepository·공통 Store·인터페이스·UseCase·DI 라이브러리·멀티 모듈은 추가하지 않는다.
+- di → data 및 각 feature ViewModel의 생성자를 연결한다. Application 초기화와 Navigation entry의 ViewModel 조회 외에는 서비스 조회를 확산하지 않는다.
+- 의미 없는 BaseViewModel/BaseRepository·공통 Store·인터페이스·UseCase·추가 DI 라이브러리·멀티 모듈은 추가하지 않는다.
 
 ## 파일과 공유 기준
 
@@ -127,8 +128,12 @@ Kotlin 공식 스타일을 기본으로 4칸 들여쓰기·LF·UTF-8·마지막 
 
 현재 패키지 의존과 변수 의미는 별도 자동 강제 플러그인이 없다. 리뷰에서 확인하며 네이밍 전용 플러그인·hook·추가 분석 프레임워크를 넣지 않는다. 기존 .coderabbit.yaml의 UI 리뷰 경로도 feature/navigation으로 맞추고 이 문서를 참조하도록 했다. 이는 로컬 AI 리뷰 지침이며 서버 적용·강제 검사 통과를 의미하지 않는다. 실제 실행 결과와 미검증은 [검증 이력](verification.md)에서 확인한다. 과거 테스트를 이번 결과로 재사용하지 않는다.
 
-## 다음 Koin 작업 — 문서 규칙만 정의
+## Koin 연결 — Issue #3
 
-별도 승인 후 di에 Application 소유 DB/PhotoStore/Repository/Detector 생성과 entry별 화면 ViewModel 등록을 옮긴다. PhotoImportHandler는 entry별 객체로 유지한다. singleton/factory/viewModel 수명과 SavedStateHandle 경로/호환 key를 확인한다. 이름만으로 수명을 입증하지 않는다. 이번에는 Koin 의존성·DI 모듈·빈 파일을 만들지 않았다.
+Koin 4.1.1의 `koin-androidx-compose` 하나를 직접 의존성으로 추가했다. `di/AppModule.kt`는 DB·DAO·PhotoStore·검증 대기 PipeDetector·LocalCountRepository를 `single`로, Home/Count/Record ViewModel을 `viewModelOf`로 등록한다. Repository 인터페이스와 구현은 같은 singleton을 조회한다. `appModule()`은 컨테이너마다 새 정의를 만들어 테스트 컨텍스트가 제품 singleton을 공유하지 않게 한다.
+
+Application에서 한 번 초기화하고 기존 삭제 복구·미참조 사진 정리를 Repository에 요청한다. 화면 ViewModel은 Navigation entry를 명시한 `koinViewModel`로 조회하며 기존 복원 key를 유지한다. SavedStateHandle은 entry의 CreationExtras로 공급하고 앱 전역에 등록하지 않는다. PhotoImportHandler는 각 ViewModel이 생성자 대역과 자신의 SavedStateHandle/viewModelScope로 만든다. 공유 Composable은 데이터·callback만 받는다.
+
+수명·호환 버전 근거와 테스트 격리는 [DI 설계](dependency_injection.md), 실행 결과·잔여 미검증은 [검증 이력](verification.md)을 따른다. annotation/Koin KSP·새 Gradle 모듈·별도 Store·UseCase는 추가하지 않았다.
 
 근거: [Kotlin 공식 컨벤션](https://kotlinlang.org/docs/coding-conventions.html), [Spotless Gradle](https://github.com/diffplug/spotless/tree/main/plugin-gradle), [ktfmt](https://github.com/Kotlin/ktfmt). 역할·패키지·Boolean·단위·완료 조건은 Pounter 자체 정책이다.

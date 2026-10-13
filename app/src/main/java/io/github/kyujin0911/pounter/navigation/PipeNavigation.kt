@@ -3,21 +3,12 @@ package io.github.kyujin0911.pounter.navigation
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.SavedStateHandle
-import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.createSavedStateHandle
-import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.lifecycle.viewmodel.initializer
-import androidx.lifecycle.viewmodel.viewModelFactory
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import io.github.kyujin0911.pounter.data.repository.CountRepository
 import io.github.kyujin0911.pounter.feature.count.CountViewModel
 import io.github.kyujin0911.pounter.feature.count.CountWorkScreen
 import io.github.kyujin0911.pounter.feature.home.HomeScreen
@@ -25,13 +16,11 @@ import io.github.kyujin0911.pounter.feature.home.HomeViewModel
 import io.github.kyujin0911.pounter.feature.record.RecordScreen
 import io.github.kyujin0911.pounter.feature.record.RecordViewModel
 import io.github.kyujin0911.pounter.feature.shared.PhotoImportAction
+import org.koin.androidx.compose.koinViewModel
 
 /** Each destination owns its own VM and import handler, never a global selected task. */
 @Composable
-fun PipeNavigation(
-    repository: CountRepository,
-    navController: NavHostController = rememberNavController(),
-) {
+fun PipeNavigation(navController: NavHostController = rememberNavController()) {
     fun home() {
         navController.popBackStack(HomeRoute, inclusive = false)
     }
@@ -50,9 +39,10 @@ fun PipeNavigation(
     NavHost(navController = navController, startDestination = HomeRoute) {
         composable<HomeRoute> { entry ->
             val viewModel =
-                entryViewModel<HomeViewModel>(repository) { saved ->
-                    HomeViewModel(repository, saved)
-                }
+                koinViewModel<HomeViewModel>(
+                    viewModelStoreOwner = entry,
+                    key = LEGACY_ENTRY_VIEW_MODEL_KEY,
+                )
             val state by viewModel.uiState.collectAsStateWithLifecycle()
             val importState by viewModel.photoImport.uiState.collectAsStateWithLifecycle()
             val input = rememberPhotoInput {
@@ -82,11 +72,12 @@ fun PipeNavigation(
                 },
             )
         }
-        composable<WorkRoute> {
+        composable<WorkRoute> { entry ->
             val viewModel =
-                entryViewModel<CountViewModel>(repository) { saved ->
-                    CountViewModel(repository, saved)
-                }
+                koinViewModel<CountViewModel>(
+                    viewModelStoreOwner = entry,
+                    key = LEGACY_ENTRY_VIEW_MODEL_KEY,
+                )
             val state by viewModel.uiState.collectAsStateWithLifecycle()
             val importState by viewModel.photoImport.uiState.collectAsStateWithLifecycle()
             val input = rememberPhotoInput {
@@ -116,11 +107,12 @@ fun PipeNavigation(
                 photoImportState = importState,
             )
         }
-        composable<RecordRoute> {
+        composable<RecordRoute> { entry ->
             val viewModel =
-                entryViewModel<RecordViewModel>(repository) { saved ->
-                    RecordViewModel(repository, saved)
-                }
+                koinViewModel<RecordViewModel>(
+                    viewModelStoreOwner = entry,
+                    key = LEGACY_ENTRY_VIEW_MODEL_KEY,
+                )
             val state by viewModel.uiState.collectAsStateWithLifecycle()
             val importState by viewModel.photoImport.uiState.collectAsStateWithLifecycle()
             val input = rememberPhotoInput {
@@ -157,15 +149,3 @@ fun PipeNavigation(
 // Entries have distinct ViewModelStores: this does not share one VM across destinations.
 private const val LEGACY_ENTRY_VIEW_MODEL_KEY =
     "androidx.lifecycle.ViewModelProvider.DefaultKey:io.github.kyujin0911.pounter.ui.CountViewModel"
-
-@Composable
-private inline fun <reified T : ViewModel> entryViewModel(
-    repository: CountRepository,
-    crossinline create: (SavedStateHandle) -> T,
-): T {
-    val factory =
-        remember(repository) {
-            viewModelFactory { initializer { create(createSavedStateHandle()) } }
-        }
-    return viewModel(key = LEGACY_ENTRY_VIEW_MODEL_KEY, factory = factory)
-}

@@ -19,22 +19,27 @@ import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToNode
 import io.github.kyujin0911.pounter.core.model.CountTask
+import io.github.kyujin0911.pounter.data.repository.CountRepository
 import java.io.File
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Rule
 import org.junit.Test
+import org.koin.android.ext.android.get
 
 class AppUiTest {
     @get:Rule val rule = createAndroidComposeRule<MainActivity>()
     private val app
         get() = rule.activity.application as PipeApplication
 
+    private val countRepository: CountRepository
+        get() = app.get()
+
     private val ids = mutableListOf<String>()
 
     @After
     fun cleanup() = runBlocking {
-        ids.forEach { id -> app.repository.get(id)?.let { app.repository.delete(it) } }
+        ids.forEach { id -> countRepository.get(id)?.let { countRepository.delete(it) } }
     }
 
     private fun importFixture(): CountTask = runBlocking {
@@ -57,7 +62,7 @@ class AppUiTest {
         source.outputStream().use { image.compress(Bitmap.CompressFormat.PNG, 100, it) }
         image.recycle()
         try {
-            app.repository.import(Uri.fromFile(source)).also { ids += it.id }
+            countRepository.import(Uri.fromFile(source)).also { ids += it.id }
         } finally {
             source.delete()
         }
@@ -88,38 +93,38 @@ class AppUiTest {
         rule.onNodeWithText("진행 중 · 이어서 확인").performClick()
         scrollTo("수동 표시 시작")
         rule.onNodeWithText("수동 표시 시작").performClick()
-        rule.waitUntil(5000) { runBlocking { app.repository.get(task.id)?.analyzed == true } }
+        rule.waitUntil(5000) { runBlocking { countRepository.get(task.id)?.analyzed == true } }
         scrollTo("이 위치에 추가")
         rule.onNodeWithText("이 위치에 추가").performClick()
-        rule.waitUntil(5000) { runBlocking { app.repository.get(task.id)?.count == 1 } }
+        rule.waitUntil(5000) { runBlocking { countRepository.get(task.id)?.count == 1 } }
         scrollTo("위치 오른쪽")
         rule.onNodeWithText("위치 오른쪽").performClick()
         scrollTo("이 위치에 추가")
         rule.onNodeWithText("이 위치에 추가").performClick()
-        rule.waitUntil(5000) { runBlocking { app.repository.get(task.id)?.count == 2 } }
+        rule.waitUntil(5000) { runBlocking { countRepository.get(task.id)?.count == 2 } }
         scrollTo("되돌리기")
         rule.onNodeWithText("되돌리기").performClick()
-        rule.waitUntil(5000) { runBlocking { app.repository.get(task.id)?.count == 1 } }
+        rule.waitUntil(5000) { runBlocking { countRepository.get(task.id)?.count == 1 } }
         // Shared photo callback must still reach Count VM and durable repository storage.
         scrollTo("표시 목록 1개")
         rule.onNodeWithText("표시 목록 1개").performClick()
         rule
             .onNode(hasText("삭제") and hasAnyAncestor(isDialog()), useUnmergedTree = true)
             .performClick()
-        rule.waitUntil(5000) { runBlocking { app.repository.get(task.id)?.count == 0 } }
+        rule.waitUntil(5000) { runBlocking { countRepository.get(task.id)?.count == 0 } }
         scrollTo("이 위치에 추가")
         rule.onNodeWithText("이 위치에 추가").performClick()
-        rule.waitUntil(5000) { runBlocking { app.repository.get(task.id)?.count == 1 } }
+        rule.waitUntil(5000) { runBlocking { countRepository.get(task.id)?.count == 1 } }
         scrollTo("현재 개수")
         rule.activityRule.scenario.recreate()
         scrollTo("현재 개수")
         rule.onNodeWithText("현재 개수").assertIsDisplayed()
-        rule.waitUntil(5000) { runBlocking { app.repository.get(task.id)?.count == 1 } }
+        rule.waitUntil(5000) { runBlocking { countRepository.get(task.id)?.count == 1 } }
         screenshot("review")
         scrollTo("1개 확인하고 확정")
         rule.onNodeWithText("1개 확인하고 확정").performClick()
         rule.onNodeWithText("확정 저장").performClick()
-        rule.waitUntil(5000) { runBlocking { app.repository.get(task.id)?.confirmed == true } }
+        rule.waitUntil(5000) { runBlocking { countRepository.get(task.id)?.confirmed == true } }
         rule.activityRule.scenario.recreate()
         scrollTo("검수 기록")
         rule.onNodeWithText("검수 기록").assertIsDisplayed()
@@ -140,6 +145,6 @@ class AppUiTest {
         scrollTo("이 기록 삭제")
         rule.onNodeWithText("이 기록 삭제").performClick()
         rule.onNodeWithText("삭제", useUnmergedTree = true).performClick()
-        rule.waitUntil(5000) { runBlocking { app.repository.get(task.id) == null } }
+        rule.waitUntil(5000) { runBlocking { countRepository.get(task.id) == null } }
     }
 }
