@@ -5,6 +5,7 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose")
     id("com.google.devtools.ksp")
 }
+
 android {
     namespace = "io.github.kyujin0911.pounter"
     compileSdk = 35
@@ -18,11 +19,16 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     buildFeatures { compose = true }
-    compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
     kotlinOptions { jvmTarget = "17" }
     packaging { resources.excludes += "/META-INF/{AL2.0,LGPL2.1}" }
 }
+
 ksp { arg("room.schemaLocation", "$projectDir/schemas") }
+
 dependencies {
     implementation("androidx.navigation:navigation-compose:2.9.8")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.8.1")

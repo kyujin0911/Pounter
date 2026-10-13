@@ -2,7 +2,7 @@
 
 ## 실행 범위와 판단 기준
 
-현재 작업(2026-10-12)은 변수 네이밍 규칙 문서화와 후속 구조·컨벤션 작업 범위 반영이다. 이번 문서만 검토·로컬 커밋하며 앱 코드·실제 변수명·Koin·원격 작업은 변경하지 않는다. 다음 작업은 실제 사용자 요청 범위를 따른다.
+현재 작업(2026-10-13)은 작업 유형 우선 브랜치 네이밍 규칙 갱신과 로컬 적용이다. 관련 문서·로컬 브랜치 이름·이번 문서 커밋만 변경한다. 앱 코드·사용자 변경·원격 push·PR 생성/병합은 변경하지 않는다. 이후 작업은 실제 사용자 요청 범위를 따른다.
 
 핵심 흐름 완성 > 기능 수, 사용성·정보 전달 > 장식. 구조를 단순하게 유지하고 플랫폼 기능을 우선한다. 데이터를 잃거나 기대값을 약화해 검증을 통과시키지 않는다. 사용자 진술·인터뷰 정정·사진 관찰·공식 설명·추정·실험·성과를 구분한다.
 
@@ -13,7 +13,7 @@
 - [디자인·화면 명세](docs/design_spec.md): 공개 레퍼런스의 확인 범위, 화면 상태·디자인 초안.
 - [디자인 시스템](docs/design_system.md): 아이콘 기반 토큰·업무 컴포넌트·상태·화면 패턴과 UI 검증 기준. UI 디자인·구현·리뷰 시 따르며 제품 범위·이동 정책은 PRD와 화면 명세가 우선한다.
 - [Compose 컴포넌트 규칙](docs/compose_components.md): 재사용 판단·Modifier·값/이벤트·슬롯·상태 소유와 컴포넌트 계약. 현재/후속 UI 작업에서 디자인 시스템과 함께 적용한다.
-- [코드 컨벤션](docs/code_conventions.md): 변수 네이밍·재사용 UI의 패키지 위치와 의존 방향·후속 구조 정리의 적용 기준.
+- [코드 컨벤션](docs/code_conventions.md): 파일·책임·패키지·명명·포맷팅과 재사용 UI의 패키지 위치·의존 방향의 단일 기준.
 - [Git 운영 규칙](docs/git_workflow.md): 브랜치·커밋·PR·병합 정책의 단일 기준.
 - [결정 기록](docs/decision_log.md): 날짜·상태·대체 관계·선택 이유. 폐기된 제안을 활성 요구사항으로 재사용하지 않음.
 - [환경 기록](docs/environment.md), [검증 이력](docs/verification.md): 확인 시점의 사실. 최신 요구사항이나 새 실행 결과를 대신하지 않음.
@@ -24,7 +24,7 @@
 
 [코드 컨벤션](docs/code_conventions.md)을 따른다. 내부 화면 상태는 _uiState, 공개 읽기 전용 상태는 uiState. Job·저장 단계·토큰·ID·단위·좌표계가 역할을 드러내게 한다. 모든 private 변수에 _를 붙이지 않는다. 영속 JSON/key/컬럼·Navigation 인자를 이름 정리로 임의 변경하지 않는다.
 
-다음 구조·컨벤션 정리 Issue의 범위와 완료 조건에 네이밍 검토·호출부 정리·동작 보존 검증을 포함한다. Koin 후속 작업도 같은 규칙을 따른다. 이 문서 갱신은 구현이나 원격 작업 허가가 아니다.
+화면/주요 ViewModel·Action·UiState는 이름에 맞는 파일, feature/home/count/record에 둔다. 공유 사진 UI는 데이터·callback을 받고 특정 화면 상태/dispatcher를 참조하지 않는다. data/core는 feature/navigation/di에 의존하지 않으며 빈 패키지·Base·불필요한 DTO를 만들지 않는다. 세부 배치/명명은 코드 컨벤션 참조. Koin 후속 작업도 같은 규칙을 따른다.
 
 ## Android·MVI 제약
 
@@ -46,9 +46,9 @@ Navigation Compose의 타입 안전 경로로 목록·계수 작업·확정 기�
 
 ## Git 전략
 
-상세 기준은 [Git 운영 규칙](docs/git_workflow.md). GitHub Flow의 main + codex/ 목적 브랜치를 사용한다. 시작 시 main과 저장된 origin/main은 db5490e로 같았고 origin 등록이 존재했다. 원격 서버 최신 상태·보호 설정은 조회하지 않았다. 기존 D-08의 'main/원격 없음'은 당시 사실이며 이후 상태는 [D-13](docs/decision_log.md#d-13-git-운영-규칙과-템플릿)을 따른다.
+상세 기준은 [Git 운영 규칙](docs/git_workflow.md). GitHub Flow의 main + 작업 유형별 목적 브랜치를 사용한다. 이름은 <type>/<Issue번호>-<짧은-작업명>, 실제 Issue가 없으면 <type>/<짧은-작업명>. type은 feat/fix/refactor/docs/test/build/chore이며 사람과 Codex 모두 동일하게 적용한다. codex/ 접두사는 신규 작업에 사용하지 않는다. Git 운영 규칙 작성 당시 main과 저장된 origin/main은 db5490e로 같았고 origin 등록이 존재했다. 2026-10-12 구조 작업 기준은 e30d20c였으며 최신 네이밍 결정은 [D-16](docs/decision_log.md#d-16-작업-유형-우선-브랜치-네이밍)을 따른다. 원격 서버 최신 상태·보호 설정은 조회하지 않았다. 기존 D-08의 'main/원격 없음'은 당시 사실이며 이후 상태는 [D-13](docs/decision_log.md#d-13-git-운영-규칙과-템플릿)을 따른다.
 
-- 같은 목적의 미병합 브랜치는 재사용, 완료된 브랜치는 최신 main에서 새 작업으로 시작한다. Issue 템플릿 작업 이후 이번 네이밍 문서는 codex/naming-conventions에서 로컬 커밋한다.
+- 같은 목적의 미병합 브랜치는 재사용, 완료된 브랜치는 최신 main에서 새 작업으로 시작한다. 이번 문서 작업은 미병합 구조 작업 refactor/1-code-structure의 196662f에서 docs/branch-naming으로 분리했다. 기존 codex/1-code-structure는 같은 커밋/이력을 유지하며 로컬 이름만 변경했다. 선행 작업 의존을 숨기거나 다른 기존 브랜치를 일괄 변경하지 않는다.
 - Issue는 동일 작업을 먼저 확인하고 목적·범위·완료 조건·검증 계획을 기록한다. 선행 관계를 연결하며 Issue 생성만으로 구현/원격 작업을 허가받은 것으로 간주하지 않는다. 상세는 Git 운영 규칙과 두 Issue 템플릿 참조.
 - 영어 type/scope + 한국어 설명의 Conventional Commits. 구체적 변경·실제 검증만 기록한다. 기존 이력을 컨벤션에 맞춰 재작성하지 않는다.
 - 변경→관련 검증→diff 리뷰→이번 파일만 스테이징→로컬 커밋. 사용자 변경·사진·개인 경로·비밀값을 포함하지 않는다.
@@ -62,15 +62,31 @@ Navigation Compose의 타입 안전 경로로 목록·계수 작업·확정 기�
 구현을 요청받은 이후 관련 검증:
 
 ```sh
-./gradlew assembleDebug testDebugUnitTest lintDebug
+./gradlew spotlessCheck assembleDebug testDebugUnitTest lintDebug
 ./gradlew connectedDebugAndroidTest
 ```
 
 ## Jetpack Compose
 For all Compose/Android UI tasks, follow the instructions in
-`skills/compose-expert/SKILL.md` and consult the reference
-files in `skills/compose-expert/references/` before answering.
+`.compose-skill/skills/compose-expert/SKILL.md` and consult the reference
+files in `.compose-skill/skills/compose-expert/references/` before answering.
+
+자동 검출 실험이 제외된 요청에서는 connectedDebugAndroidTest 전체 실행 대신 허용된 테스트 클래스/메서드 목록을 명시해 Hough 프로토타입을 실행하지 않는다.
 
 검출은 PRD의 독립 실사진·정답 위치·대표 실기기로 평가한다. 첫 분석/반복 분석과 전체 검수 시간을 구분한다. 회전/Activity 재생성, OS 프로세스 종료, 강제 종료 재실행을 서로 대신한 검증으로 보고하지 않는다. 미확인 항목은 최소 확인 절차와 함께 남긴다.
 
 기존 빌드 설정은 환경 기록을 참고하고 필요한 시점에 가볍게 확인한다. 정상 설정을 반복 요구하지 않는다. 인증·권한·대상 변경이나 실제 오류가 있을 때만 재설정 안내. 이미지·오버레이·개인 경로·비밀값은 커밋하지 않는다. 선택 도구 연결은 전체 작업의 필수 선행 조건으로 만들지 않는다.
+
+## graphify
+
+This project has a knowledge graph at graphify-out/ with god nodes, community structure, and cross-file relationships.
+
+When the user types `/graphify`, use the installed graphify skill or instructions before doing anything else.
+
+Rules:
+- For codebase questions, first run `graphify query "<question>"` when graphify-out/graph.json exists. Use `graphify path "<A>" "<B>"` for relationships and `graphify explain "<concept>"` for focused concepts. These return a scoped subgraph, usually much smaller than GRAPH_REPORT.md or raw grep output.
+- Dirty graphify-out/ files are expected after hooks or incremental updates; dirty graph files are not a reason to skip graphify. Only skip graphify if the task is about stale or incorrect graph output, or the user explicitly says not to use it.
+- If graphify-out/wiki/index.md exists, use it for broad navigation instead of raw source browsing.
+- Read graphify-out/GRAPH_REPORT.md only for broad architecture review or when query/path/explain do not surface enough context.
+- After modifying code, run `graphify update .` to keep the graph current (AST-only, no API cost).
+- A committed graphify-out/graph.json is rewritten whole on every build, so a large diff to it in a pull request is expected. Do not flag it as churn or suggest skipping the graph rebuild or its hooks.

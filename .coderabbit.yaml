@@ -10,7 +10,7 @@ reviews:
     - path: "**/*"
       instructions: |
         Pounter는 오프라인 사진 기반 파이프 계수 Kotlin/Compose Android 앱이다.
-        관련 PRD.md, AGENTS.md, docs/auto_counting.md, docs/design_spec.md를 확인한다.
+        관련 PRD.md, AGENTS.md, docs/auto_counting.md, docs/design_spec.md, docs/code_conventions.md를 확인한다.
         최신 명시적 사용자 정정과 PRD를 우선한다. 결정 기록의 폐기·대체 제안,
         문서의 과거 요청 범위와 검증 스냅샷을 영구적인 제품 제약으로 적용하지 않는다.
         변경과 그 호출·저장·복원 경로를 추적해 새로 생기거나 악화된 문제를 우선한다.
@@ -36,9 +36,9 @@ reviews:
         IO와 CPU/네이티브 분석으로 메인 스레드를 막지 않는다. NonCancellable은 파일/DB
         일관성에 필요한 짧은 완료 구간에 제한하며 무조건 제거하거나 전체 분석에 확대하지 않는다.
 
-    - path: "app/src/main/**/ui/**"
+    - path: "app/src/main/**/{feature,navigation}/**"
       instructions: |
-        CountViewModel의 busy, pendingSave, unsavedChanges, generation과 동등한 보호를 유지한다.
+        CountViewModel의 isBusy, taskPendingSave, unsavedChanges, analysisGeneration과 동등한 보호를 유지한다.
         연속 보정·중복 확정·분석 취소/재시도·다른 작업의 늦은 결과가 현재 상태를 덮지 않아야 한다.
         분석 결과는 작업 ID와 영역/작업 버전의 유효성을 확인한다. 네이티브 연산 취소가
         즉시 완료된다고 가정하지 않는다. 중요한 완료·오류를 유실 가능한 일회성 이벤트로만 전달하지 않는다.
@@ -152,3 +152,4 @@ knowledge_base:
       - "docs/auto_counting.md"
       - "docs/design_spec.md"
       - "docs/git_workflow.md"
+      - "docs/code_conventions.md"
