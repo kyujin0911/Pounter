@@ -6,8 +6,15 @@ import androidx.exifinterface.media.ExifInterface
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import io.github.kyujin0911.pounter.data.detector.*
+import io.github.kyujin0911.pounter.data.local.photo.AnalysisPhoto
 import io.github.kyujin0911.pounter.data.local.photo.PhotoStore
+import io.github.kyujin0911.pounter.data.local.photo.readOwnedAnalysisPhoto
 import java.io.File
+import java.util.concurrent.LinkedBlockingQueue
+import java.util.concurrent.TimeUnit
+import kotlin.coroutines.CoroutineContext
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.*
 import org.junit.Test
@@ -37,6 +44,39 @@ class AnalysisPhotoInstrumentedTest {
         } finally {
             photos.delete(imported.first)
             source.delete()
+        }
+    }
+
+    @Test
+    fun cancellationBeforeDecodeDeliveryReleasesOwnedBitmap() = runBlocking {
+        val pending = LinkedBlockingQueue<Runnable>()
+        val deliveryDispatcher =
+            object : CoroutineDispatcher() {
+                override fun dispatch(context: CoroutineContext, block: Runnable) {
+                    pending.put(block)
+                }
+            }
+        val bitmap = Bitmap.createBitmap(32, 32, Bitmap.Config.ARGB_8888)
+        var delivered = false
+        val job =
+            launch(deliveryDispatcher) {
+                readOwnedAnalysisPhoto { AnalysisPhoto(bitmap, 32, 32) }.use { delivered = true }
+            }
+        try {
+            pending.poll(5, TimeUnit.SECONDS)!!.run() // Start acquisition; IO read is asynchronous.
+            val delivery = pending.poll(5, TimeUnit.SECONDS)!! // IO completed, caller resume held.
+            assertFalse(bitmap.isRecycled)
+            job.cancel()
+            delivery.run()
+            job.join()
+            assertFalse(delivered)
+            assertTrue(
+                "Undelivered decode must be released at prompt cancellation",
+                bitmap.isRecycled,
+            )
+        } finally {
+            job.cancel()
+            if (!bitmap.isRecycled) bitmap.recycle()
         }
     }
 

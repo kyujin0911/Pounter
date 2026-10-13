@@ -118,7 +118,7 @@ class PhotoStore(private val context: Context) {
         }
 
     suspend fun analysisPhoto(name: String, maxSidePx: Int, maxDecodedPixels: Long): AnalysisPhoto =
-        withContext(Dispatchers.IO) {
+        readOwnedAnalysisPhoto {
             if (maxSidePx <= 0 || maxDecodedPixels <= 0)
                 throw DetectionFailure(DetectionFailureReason.INVALID_INPUT)
             try {

@@ -177,3 +177,9 @@ DI 초기화 테스트를 연결 전 실행하여 `KoinApplication has not been 
 - API36.1 UI 13개는 기존 Espresso의 InputManager.getInstance reflection 오류로 실패. 테스트 의존성 전체 업그레이드는 하지 않았고, API36에서 UI 13개를 다시 통과했다. API36.1 UI 호환성은 미검증/실패 상태로 남긴다.
 
 실사진의 정답 위치/개수·독립성·현장 고정 config가 없어 튜닝/독립 인수는 실행하지 않았다. S22+ 연결/성능, 5초 사용자 관찰 지연, peak 메모리, 보정 후 정답, 전체 검수 효용, OS 프로세스 종료와 force-stop은 검증 대기. 기존 Navigation의 StateRestorationTester/entry 동작과 이 현장 검증을 동일시하지 않는다. Task 7은 진행하지 않는다.
+
+### 최종 리뷰 수정 후 재검증
+
+독립 전체 리뷰에서 Important 1건(분석 Bitmap의 IO 반환 전달 직전 취소 시 미해제)을 확인했다. 동일 반환 경계를 보류한 회귀 테스트의 해제 assertion 실패를 확인하고, 반환 컨텍스트 바깥에서 미전달 자원을 닫도록 수정했다. 재현 테스트와 정상 사진/복합 검출 10개 통과. Critical/Minor 지적 없음.
+
+수정된 코드에서 포맷·앱/test APK 빌드·Lint 및 JVM 52개 통과. API36의 앞서 명시한 모든 클래스와 Repository 허용 6메서드를 합친 최종 회귀는 **41개 통과, 외부 현장 평가 2개 skip, 실패 0**이다. API36.1 UI는 기존 호환성 실패 상태로 유지한다. 실제 현장 인수·실기기·프로세스 종료를 이 결과로 대신하지 않는다.

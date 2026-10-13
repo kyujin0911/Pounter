@@ -170,7 +170,7 @@ Task 1~5는 실제 정답 자료가 미확보여도 대역·합성 자료로 개
 | Task 3 | 완료: preview와 별도 분석 입력·명시적 픽셀 예산·소유 자원 | `202da16`; EXIF 1~8 위치/크기, decode 크기, budget, recycle |
 | Task 4 | 완료: 평가용 복합 검출·취소 직렬 실행 | `444a2de`; 합성 타원/환형 경계, 0개, 후보 포화/301개, 초기화 실패, 취소 후 최대 native owner=1 |
 | Task 5 | 완료: 새 자동 결과 저장 대기·재시도·snapshot/stage 유효성 | `890b60d`; 저장 실패 markers/automatic/metadata 유지, 편집/확정 차단, id/revision/photo/region 불일치 차단, entry 종료 저장 경계 복원 |
-| Task 6 | 평가 코드/규약 준비; 현장 평가 검증 대기 | 최대 일대일 대응·사진별 보정량, hash/frozen/session/bundle 규약, 외부 tuning/independent 진입점. 외부 자료 미제공으로 두 평가 skip |
+| Task 6 | 평가 코드/규약 준비; 현장 평가 검증 대기 | `8d4b5af`; 최대 일대일 대응·사진별 보정량, hash/frozen/session/bundle 규약, 외부 tuning/independent 진입점. 외부 자료 미제공으로 두 평가 skip |
 | Task 7 | 진행하지 않음 | 현장 인수 근거 없음. 기본 detector/Koin/OpenCV 의존성 유지 |
 
 검증: `spotlessCheck assembleDebug assembleDebugAndroidTest testDebugUnitTest lintDebug` 통과. JVM 52개, API36 앱/UI/검출/호환성/규약 회귀 34개 통과 + 외부 평가 2개 skip, Repository 허용 메서드 6개 통과. Task 1/3/4 개별 기기 테스트는 API36과 API36.1 양쪽에서 통과했다. API36.1 UI는 기존 Espresso의 `InputManager.getInstance` 부재로 실패하므로 합격으로 계산하지 않는다. UI 관련 재검증은 API36에서 수행했다. 상세는 [검증 이력](../../verification.md#자동-계수-평가-구현-검증--2026-10-13).
@@ -178,3 +178,13 @@ Task 1~5는 실제 정답 자료가 미확보여도 대역·합성 자료로 개
 판단: Gaussian adaptiveThreshold 내부 float convertTo가 ARM API36 emulator에서 SIGILL을 발생시켜 양극성 국소 평균 분리로 선택했다. 설계가 허용한 국소 밝기 분리이며 추가 알고리즘/라이브러리를 도입하지 않았다. 이 선택이 실사진에 불리하면 튜닝 자료로 새 고정 버전을 정해야 한다. 합성 시험값은 현장 기본값이 아니다.
 
 남은 검증: 단면별 정답·촬영 세션/묶음·새 독립 자료, 가져오기/축소 손실의 실사진 평가와 고정 config, S22+/Android16 분석 시작→저장→화면 표시 시간·peak 메모리·취소/재시도, 보정 후 정답 일치·기존 수동 방식과 전체 검수 시간/최종 오류/포기 비교, 첫 사용 후 개선 폭/반복 횟수 합의, Activity 재생성·OS 프로세스 종료·force-stop 별도 실행. 외부 정답 없는 합성/에뮬레이터 성공으로 현장 인수를 완료하지 않는다.
+
+### 최종 독립 리뷰와 보완
+
+`b1cd809..8d4b5af` 전체 변경을 fresh-context reviewer가 읽기 전용으로 검토했다. Critical 0 / Important 1 / Minor 0. 최초 리뷰 호출이 사용량 제한으로 중단되어 사용자 재개 요청 후 같은 리뷰를 이어갔으며 완료된 Task를 다시 구현하지 않았다.
+
+Important: `analysisPhoto`의 decode 완료 후 IO→호출 dispatcher 전달 경계에서 취소되면 Bitmap이 미전달 상태로 남는 문제. `cancellationBeforeDecodeDeliveryReleasesOwnedBitmap`으로 반환 재개를 보류한 뒤 취소하여 해제 assertion 실패를 재현했다. 소유권을 반환 경계 바깥까지 유지하는 `readOwnedAnalysisPhoto`로 수정한 뒤 같은 테스트가 통과했다. 정상 전달된 사진은 기존 close/use 소유권을 유지한다.
+
+수정 후 전체 검증: `spotlessCheck assembleDebug assembleDebugAndroidTest testDebugUnitTest lintDebug` 통과, JVM 52개 실패 0. API36의 전체 허용 기기 회귀는 41개 통과 + 외부 현장 평가 2개 skip(총 43개), 실패 0. 기존 Hough 프로토타입 메서드는 목록에서 제외했다. Task 6 현장 평가와 Task 7 제공은 여전히 미완료다.
+
+리뷰가 실행 근거로 대체하지 않은 항목: 실제 사진 정확도·밀집 분리, S22+ 시간/메모리/검수 효용, 실제 OS 프로세스 종료/force-stop, API36.1 Espresso 호환성. 이들은 위 남은 검증으로 유지한다. 미뤄둔 Minor 리뷰 항목은 없다. 브랜치/worktree를 로컬 그대로 보존하며 원격 작업은 수행하지 않는다. AST graphify는 갱신했고, 시작점에서 미추적이던 graph 산출물은 로컬에 두어 코드/문서 커밋에 포함하지 않았다.
