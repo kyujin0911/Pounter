@@ -169,7 +169,7 @@ DI 초기화 테스트를 연결 전 실행하여 `KoinApplication has not been 
 `b1cd809` 승인 계획에서 `feat/auto-counting`으로 직접 실행했다. Task 1~5 구현, Task 6 평가 코드/규약 준비. 기존 사용자 변경/원본 사진은 사용하거나 커밋하지 않았다. 일반 앱 detector와 OpenCV 의존성의 제공 범위는 기존 검증 대기를 유지한다.
 
 - 포맷·debug 앱/test APK 빌드·JVM·Lint: `spotlessCheck assembleDebug assembleDebugAndroidTest testDebugUnitTest lintDebug` 통과. JVM 총 52개, 실패 0.
-- Small_Phone API36: AppUiTest, LargeFontUiTest, NavigationUiTest, DiInstrumentedTest, DetectionFlowUiTest, AnalysisMetadataInstrumentedTest, AnalysisPhotoInstrumentedTest, CompositeDetectorInstrumentedTest, EvaluationProtocolInstrumentedTest 총 34개 통과. DetectionEvaluationTest/DetectionAcceptanceTest 각 1개는 외부 manifest/config 미제공으로 skip. skip은 현장 합격이 아니다.
+- Small_Phone API36: AppUiTest, LargeFontUiTest, NavigationUiTest, DiInstrumentedTest, DetectionFlowUiTest, AnalysisMetadataInstrumentedTest, AnalysisPhotoInstrumentedTest, CompositeDetectorInstrumentedTest, EvaluationProtocolInstrumentedTest 총 32개 통과. DetectionEvaluationTest/DetectionAcceptanceTest 각 1개는 외부 manifest/config 미제공으로 skip. skip은 현장 합격이 아니다.
 - RepositoryInstrumentedTest: importEditReloadConfirmAndDelete, staleRevisionCannotOverwriteSavedChanges, interruptedDeletionIsCompletedOnStartup, invalidInputDoesNotReplaceExistingRecord, cancellationAfterInsertKeepsReferencedPhoto, legacyVersionOneDatabaseAndPayloadReopenWithoutMigration 6개 통과. 기존 Hough 프로토타입 메서드는 이 회귀 목록에서 실행하지 않았다. Task 6 실제 tuning 입력도 없으므로 현장 Hough 기준선 평가 미실행.
 - Task 1 메타데이터/기존 v1 SQL, Task 3 EXIF·입력·자원(4개), Task 4 합성 복합 검출·상한·직렬 취소(5개)는 API36/API36.1 양쪽에서 개별 통과.
 - 초기 새 타입 테스트는 미구현 API로 컴파일 실패했고, Task 5 저장 실패·snapshot 회귀 2개는 기존 구현의 assertion 실패를 확인한 뒤 통과했다. 환경/파서 오류는 기능 실패 증거와 구분한다. 초기 연쇄 통합 fixture는 포함 관계가 없던 동률 원 3개를 실제 포함되는 축/점수 차이의 연쇄로 수정했으며 기대 개수/포함 기준은 유지했다.
@@ -182,4 +182,6 @@ DI 초기화 테스트를 연결 전 실행하여 `KoinApplication has not been 
 
 독립 전체 리뷰에서 Important 1건(분석 Bitmap의 IO 반환 전달 직전 취소 시 미해제)을 확인했다. 동일 반환 경계를 보류한 회귀 테스트의 해제 assertion 실패를 확인하고, 반환 컨텍스트 바깥에서 미전달 자원을 닫도록 수정했다. 재현 테스트와 정상 사진/복합 검출 10개 통과. Critical/Minor 지적 없음.
 
-수정된 코드에서 포맷·앱/test APK 빌드·Lint 및 JVM 52개 통과. API36의 앞서 명시한 모든 클래스와 Repository 허용 6메서드를 합친 최종 회귀는 **41개 통과, 외부 현장 평가 2개 skip, 실패 0**이다. API36.1 UI는 기존 호환성 실패 상태로 유지한다. 실제 현장 인수·실기기·프로세스 종료를 이 결과로 대신하지 않는다.
+수정된 코드에서 포맷·앱/test APK 빌드·Lint 및 JVM 52개 통과. API36의 앞서 명시한 모든 클래스와 Repository 허용 6메서드를 합친 최종 회귀는 **39개 통과, 외부 현장 평가 2개 skip, 실패 0**이다. API36.1 UI는 기존 호환성 실패 상태로 유지한다. 실제 현장 인수·실기기·프로세스 종료를 이 결과로 대신하지 않는다.
+
+집계는 결과 XML의 testcase/skip/failure를 기준으로 했다. 최종 testcase 41개 중 skip 2개이므로 통과는 39개다. Gradle 진행 로그의 Finished 43 표시는 통과 개수 근거로 쓰지 않는다.
