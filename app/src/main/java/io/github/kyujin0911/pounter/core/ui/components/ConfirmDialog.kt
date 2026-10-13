@@ -4,6 +4,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
 
 @Composable
 internal fun ConfirmDialog(
@@ -12,8 +13,10 @@ internal fun ConfirmDialog(
     confirm: String,
     onDismiss: () -> Unit,
     onConfirm: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     AlertDialog(
+        modifier = modifier,
         onDismissRequest = onDismiss,
         title = { Text(title) },
         text = { Text(body) },

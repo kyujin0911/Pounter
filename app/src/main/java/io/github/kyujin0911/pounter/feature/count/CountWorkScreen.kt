@@ -234,7 +234,14 @@ fun CountWorkScreen(
                                     }
                             }
                         }
-                        item { DetailPhotoActions(canEdit, onPick, onCamera) { dialog = "delete" } }
+                        item {
+                            DetailPhotoActions(
+                                canEdit,
+                                onPick,
+                                onCamera,
+                                onDelete = { dialog = "delete" },
+                            )
+                        }
                     }
                 }
             }
@@ -246,10 +253,11 @@ fun CountWorkScreen(
             "현재 변경을 유지하고 있습니다. 저장을 재시도한 뒤 목록으로 이동해주세요.",
             "저장 재시도",
             { dialog = null },
-        ) {
-            dialog = null
-            dispatch(CountAction.RetrySave)
-        }
+            onConfirm = {
+                dialog = null
+                dispatch(CountAction.RetrySave)
+            },
+        )
     }
     if (task != null && dialog != null) {
         when (dialog) {
@@ -269,31 +277,34 @@ fun CountWorkScreen(
                     "사진의 모든 단면과 표시를 확인했나요? ${task.count}개로 저장하며 확정된 기록은 수정할 수 없습니다.",
                     "확정 저장",
                     { dialog = null },
-                ) {
-                    dispatch(CountAction.Confirm)
-                    mode = EditMode.VIEW
-                    dialog = null
-                }
+                    onConfirm = {
+                        dispatch(CountAction.Confirm)
+                        mode = EditMode.VIEW
+                        dialog = null
+                    },
+                )
             "delete" ->
                 ConfirmDialog(
                     "기록 삭제",
                     "앱 내부 사진과 표시가 삭제됩니다. 원본 갤러리 사진은 유지되며 이 삭제는 되돌릴 수 없습니다.",
                     "삭제",
                     { dialog = null },
-                ) {
-                    dispatch(CountAction.Delete)
-                    dialog = null
-                }
+                    onConfirm = {
+                        dispatch(CountAction.Delete)
+                        dialog = null
+                    },
+                )
             "reanalyze" ->
                 ConfirmDialog(
                     "자동 계수 상태",
                     "자동 계수는 정면 사진 검증 대기 중입니다. 현재 수동 표시는 유지됩니다.",
                     "확인",
                     { dialog = null },
-                ) {
-                    dispatch(CountAction.Analyze)
-                    dialog = null
-                }
+                    onConfirm = {
+                        dispatch(CountAction.Analyze)
+                        dialog = null
+                    },
+                )
         }
     }
 }
