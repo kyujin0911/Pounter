@@ -26,9 +26,13 @@ class CompositePipeDetector(
     var initializationMillis: Long = 0
         private set
 
-    override suspend fun detect(task: CountTask): Detection =
+    override suspend fun detect(task: CountTask): Detection = detect(task) {}
+
+    override suspend fun detect(task: CountTask, onStage: (AnalysisStage) -> Unit): Detection =
         withContext(Dispatchers.Default) {
+            onStage(AnalysisStage.WAITING)
             executionMutex.withLock {
+                onStage(AnalysisStage.PROCESSING)
                 ensureActive()
                 val started = System.nanoTime()
                 if (!initialized) {

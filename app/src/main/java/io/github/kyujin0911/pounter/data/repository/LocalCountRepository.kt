@@ -2,6 +2,7 @@ package io.github.kyujin0911.pounter.data.repository
 
 import android.net.Uri
 import io.github.kyujin0911.pounter.core.model.CountTask
+import io.github.kyujin0911.pounter.data.detector.AnalysisStage
 import io.github.kyujin0911.pounter.data.detector.PipeDetector
 import io.github.kyujin0911.pounter.data.local.database.TaskCodec
 import io.github.kyujin0911.pounter.data.local.database.TaskDao
@@ -100,6 +101,9 @@ class LocalCountRepository(
     override suspend fun preview(task: CountTask) = photoStore.bitmap(task.photoName)
 
     override suspend fun detect(task: CountTask) = pipeDetector.detect(task)
+
+    override suspend fun detect(task: CountTask, onStage: (AnalysisStage) -> Unit) =
+        pipeDetector.detect(task, onStage)
 
     suspend fun finishDeletes() =
         writeMutex.withLock {
