@@ -79,6 +79,7 @@
 | RecordRoute | S-05 읽기 전용 기록 | taskId만 전달 |
 
 - Home entry는 HomeViewModel로 목록을 구독한다. 계수/기록 entry는 각각 CountViewModel/RecordViewModel이 경로의 taskId를 SavedStateHandle에서 읽고 Repository에서 복원한다. PhotoImportHandler는 entry별로 재사용하며 전역 선택 작업 ID를 별도로 복원하지 않는다. NavController는 UI에만 둔다. 파일·책임·패키지·복원 이름 호환성은 [코드 컨벤션](code_conventions.md)을 따른다.
+- Koin 4.1.1로 세 ViewModel을 등록하고 각 destination의 entry를 명시하여 조회한다. 기존 ViewModel 저장 key와 경로 taskId를 유지하며 Activity/app 전역 ViewModel로 공유하지 않는다. 저장 객체 수명과 Application 초기화는 [DI 설계](dependency_injection.md)를 따른다.
 - 목록에서 저장 상태에 따라 작업/기록 목적지로 이동한다. 경로 종류와 실제 확정 상태가 다르면 올바른 목적지로 교체하며 기록 화면은 전환 중에도 편집 도구를 제공하지 않는다.
 - 새 사진 가져오기 성공 후에만 새 ID로 작업 화면을 연다. 이전 작업은 저장소에 유지하고 이전 상세 목적지는 제거한다. Picker/카메라 취소·읽기 실패는 원래 목적지를 유지한다.
 - 일반 뒤로 가기는 목록으로 복귀한다. 분석 중 첫 뒤로 가기는 분석을 취소하고 현재 화면을 유지한다. 불가역 저장 중에는 이동을 막는다. 미저장 변경이 있으면 이동 대신 저장 재시도를 안내한다.

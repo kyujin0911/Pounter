@@ -114,6 +114,57 @@ SavedStateHandle 복원 경계의 공식 근거: [Saved State 모듈](https://de
 - Android Studio IDE Sync/개별 기기 화면과 원격 CodeRabbit 설정/PR 적용은 미검증. 이후 원격 운영은 사용자 요청 범위에 따른다.
 
 
+## Koin 의존성 주입 검증 — 2026-10-13
+
+[Issue #3](https://github.com/kyujin0911/Pounter/issues/3), `codex/3-koin-di`. 선행 #1은 completed이고 원격 main `64f4700`에 구조 정리가 squash 반영된 것을 원격 SHA 조회·fetch·앱 코드/컨벤션 diff로 확인했다. 그 origin/main에서 시작했다. 선행 브랜치 자동 병합·push·PR 생성/병합은 수행하지 않았다.
+
+### 실제 실행 결과
+
+- `spotlessApply spotlessCheck assembleDebug testDebugUnitTest lintDebug`: 성공. JVM 테스트 28개, 실패·skip 0. 기존 생성자 대역 주입 테스트를 그대로 실행했다.
+- Lint: 0 errors, 27 warnings. target/compile SDK·기존 의존성/Gradle 및 Koin 최신 버전 안내다. Koin 4.1.1은 현행 Kotlin 2.1.21 호환성을 기준으로 선택했고 경고를 숨기거나 툴체인을 일괄 업그레이드하지 않았다.
+- `ANDROID_SERIAL=emulator-5554`의 Small_Phone API 36(Android 16): allowlist 기기 테스트 18개 통과, 실패·skip 0. 연결된 다른 에뮬레이터는 실행 대상으로 선택하지 않았다. 아래 class 인자를 사용했다.
+
+```text
+io.github.kyujin0911.pounter.DiInstrumentedTest
+io.github.kyujin0911.pounter.NavigationUiTest
+io.github.kyujin0911.pounter.AppUiTest
+io.github.kyujin0911.pounter.RepositoryInstrumentedTest#importEditReloadConfirmAndDelete
+io.github.kyujin0911.pounter.RepositoryInstrumentedTest#staleRevisionCannotOverwriteSavedChanges
+io.github.kyujin0911.pounter.RepositoryInstrumentedTest#interruptedDeletionIsCompletedOnStartup
+io.github.kyujin0911.pounter.RepositoryInstrumentedTest#invalidInputDoesNotReplaceExistingRecord
+io.github.kyujin0911.pounter.RepositoryInstrumentedTest#cancellationAfterInsertKeepsReferencedPhoto
+io.github.kyujin0911.pounter.RepositoryInstrumentedTest#legacyVersionOneDatabaseAndPayloadReopenWithoutMigration
+```
+
+`./gradlew connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=`에 위 목록을 쉼표로 연결했다. 전체 RepositoryInstrumentedTest 클래스와 `prototypeLoadsNativeLibraryAndDetectsSyntheticCircles`는 실행하지 않았다. androidTest APK에 기존 프로토타입을 컴파일한 사실은 검출 실험 실행이 아니다.
+
+| 검사 | 실제 확인 범위 |
+|---|---|
+| DiInstrumentedTest 1개 | Application의 Koin 시작, DB/DAO/PhotoStore/Detector/Repository single identity, Repository interface/implementation 동일 객체, ValidationRequiredDetector 등록 |
+| NavigationUiTest 10개 | 세 VM 등록·경로 taskId 주입, 같은 CountViewModel 클래스의 별도 entry 인스턴스, 기존 entry 재사용·pop 후 재열기 시 새 인스턴스, 사진 취소/실패/성공, 없는 ID·경로 종류 보정, 저장/삭제 실패·재시도·이동 |
+| Navigation 저장 상태 검사 | StateRestorationTester로 Compose 저장 상태와 Navigation WorkRoute/taskId·실패 보정·재시도 유지. 실제 OS 프로세스 종료나 반드시 새 VM의 복원을 입증하는 검사는 아님 |
+| AppUiTest 1개 | 실제 Application graph/Room/사진 저장소의 수동 추가·되돌리기·공유 표시 삭제·확정·읽기 전용·재열기·삭제, 계수/기록 ActivityScenario.recreate |
+| Repository 테스트 6개 | 가져오기·저장·확정·삭제, stale revision 거절, 중단 삭제 복구, 잘못된 입력·취소 보존, version 1 DB/payload 재열기 |
+
+DI 초기화 테스트를 연결 전 실행하여 `KoinApplication has not been started` 실패를 확인했고 연결 후 통과했다. Navigation 테스트 첫 실행에서는 Compose KoinApplication이 제품 전역 컨텍스트를 재사용하여 테스트 대역이 아닌 실제 Repository를 조회했다. 선택 버전의 공식 소스·실제 객체 로그로 확인하고, KoinIsolatedContext/컨테이너별 module 정의/종료 정리로 수정했다. 수정 후 관련 9개와 최종 allowlist 18개가 통과했다. 테스트 기대값을 약화하지 않았다.
+
+### 보존·정적 확인
+
+- data/core/feature·Room schema·Manifest는 origin/main 대비 diff 없음. applicationId·DB version 1·counts.db·payload/사진 경로·Route SerialName·SavedStateHandle key 유지.
+- Repository/VM 생성자에는 Koin/Context/NavController를 추가하지 않았다. data/core/feature의 di·Koin import 없음. Composable의 Repository/DAO 직접 조회 없음.
+- Application은 동일 LocalCountRepository의 기존 finishDeletes를 IO coroutine에서 호출한다. 복구·미참조 사진 정리 로직은 data에 유지했다. Application 재시작 시 해당 호출 경로는 정적 확인이며 아래 실제 종료 실험과 구분한다.
+- `graphify update .` AST 갱신 성공. 기존 미추적 graphify-out은 커밋하지 않는다. 사용자 .codex/assets/아이콘 파일은 스테이징하지 않는다.
+
+읽기 전용 AI 코드 리뷰에서 차단할 제품 결함 지적은 없었다. 저장 상태 테스트의 살아 있는 ViewModelStore와 실제 새 프로세스/VM 복원을 구분해야 한다는 한계를 확인하여 위 표와 아래 미검증에 반영했다. 이는 인간 승인·원격 리뷰가 아니다.
+
+### 미검증과 최소 후속 절차
+
+- 실제 OS 프로세스 종료 후 새 VM·SavedStateHandle 복원: 작업/미저장 보정 상태에서 백그라운드로 보내 OS 저장 상태를 확보한 뒤 background process 종료·복귀, taskId/pendingSave/표시·재시도 확인. Activity 재생성과 StateRestorationTester를 이 결과로 확대하지 않는다.
+- 강제 종료 재실행의 삭제 복구·미참조 사진 정리: 별도 테스트 데이터로 tombstone/미참조 파일을 준비하고 강제 종료·재실행한 뒤 DB/file 정합성 확인. 현재 Repository 복구 테스트와 Application 호출의 정적 확인만 수행했다.
+- 실기기 갤럭시 S22+·실제 카메라·회전: 대표 기기로 같은 수동 흐름·회전 확인. 이번 대상은 에뮬레이터이며 Activity 재생성만 실행했다.
+- 현장 자동 계수 성능·Hough 실험: 이번 요청의 제외 범위. 검증 대기 검출기를 유지했다.
+
+
 ## 2026-10-13 디자인 시스템 구현
 
 기준: 구조 변경 `64f4700` + 디자인 문서 결합 `9e03aba`, 브랜치 `codex/design-system-implementation`. 테마/패키지/안내/입력·기록/보정·확정/완료 UI를 각각 `9b8759a`, `5a57148`·`77d710b`, `0030ea3`, `43519dc`, `bdc4cc4`에 적용했다. 자동 검출·저장 모델·Room 스키마·앱 ID·Navigation 경로·의존성은 바꾸지 않았다.

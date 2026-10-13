@@ -9,15 +9,19 @@ import androidx.activity.compose.LocalActivityResultRegistryOwner
 import androidx.activity.result.ActivityResultRegistry
 import androidx.activity.result.ActivityResultRegistryOwner
 import androidx.activity.result.contract.ActivityResultContract
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.junit4.StateRestorationTester
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToNode
 import androidx.core.app.ActivityOptionsCompat
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
@@ -27,20 +31,37 @@ import io.github.kyujin0911.pounter.core.model.Marker
 import io.github.kyujin0911.pounter.core.ui.theme.PipeTheme
 import io.github.kyujin0911.pounter.data.detector.Detection
 import io.github.kyujin0911.pounter.data.repository.CountRepository
+import io.github.kyujin0911.pounter.di.appModule
+import io.github.kyujin0911.pounter.feature.count.CountAction
+import io.github.kyujin0911.pounter.feature.count.CountViewModel
+import io.github.kyujin0911.pounter.feature.home.HomeViewModel
 import io.github.kyujin0911.pounter.navigation.HomeRoute
 import io.github.kyujin0911.pounter.navigation.PipeNavigation
 import io.github.kyujin0911.pounter.navigation.RecordRoute
 import io.github.kyujin0911.pounter.navigation.WorkRoute
 import kotlinx.coroutines.flow.MutableStateFlow
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotSame
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
+import org.koin.compose.KoinIsolatedContext
+import org.koin.core.KoinApplication
+import org.koin.dsl.koinApplication
+import org.koin.dsl.module
 
 class NavigationUiTest {
     @get:Rule val composeRule = createComposeRule()
     private lateinit var navController: NavHostController
+    private lateinit var testKoin: KoinApplication
+
+    @After
+    fun closeKoin() {
+        if (::testKoin.isInitialized) testKoin.close()
+    }
 
     private class Repository : CountRepository {
         var storedTask =
@@ -85,21 +106,34 @@ class NavigationUiTest {
         }
     }
 
-    private fun start(countRepository: Repository, inputRegistry: ActivityResultRegistry? = null) {
-        composeRule.setContent {
-            navController = rememberNavController()
-            if (inputRegistry == null) PipeTheme { PipeNavigation(countRepository, navController) }
-            else
-                CompositionLocalProvider(
-                    LocalActivityResultRegistryOwner provides
-                        object : ActivityResultRegistryOwner {
-                            override val activityResultRegistry: ActivityResultRegistry =
-                                requireNotNull(inputRegistry)
-                        }
-                ) {
-                    PipeTheme { PipeNavigation(countRepository, navController) }
-                }
+    private fun start(
+        countRepository: Repository,
+        inputRegistry: ActivityResultRegistry? = null,
+        restorationTester: StateRestorationTester? = null,
+    ) {
+        testKoin = koinApplication {
+            modules(appModule())
+            modules(module { single<CountRepository> { countRepository } })
         }
+        assertSame(countRepository, testKoin.koin.get<CountRepository>())
+        val content: @Composable () -> Unit = {
+            KoinIsolatedContext(testKoin) {
+                navController = rememberNavController()
+                if (inputRegistry == null) PipeTheme { PipeNavigation(navController) }
+                else
+                    CompositionLocalProvider(
+                        LocalActivityResultRegistryOwner provides
+                            object : ActivityResultRegistryOwner {
+                                override val activityResultRegistry: ActivityResultRegistry =
+                                    requireNotNull(inputRegistry)
+                            }
+                    ) {
+                        PipeTheme { PipeNavigation(navController) }
+                    }
+            }
+        }
+        if (restorationTester == null) composeRule.setContent(content)
+        else restorationTester.setContent(content)
         composeRule.waitForIdle()
     }
 
@@ -118,6 +152,84 @@ class NavigationUiTest {
         composeRule.onNodeWithText("진행 중 · 이어서 확인").performClick()
         composeRule.waitForIdle()
         assertRoute<WorkRoute>()
+    }
+
+    private inline fun <reified T : ViewModel> currentViewModel(): T =
+        ViewModelProvider(navController.currentBackStackEntry!!)[
+            "androidx.lifecycle.ViewModelProvider.DefaultKey:io.github.kyujin0911.pounter.ui.CountViewModel",
+            T::class.java,
+        ]
+
+    @Test
+    fun sameClassUsesSeparateEntriesAndRemovedWorkCreatesNewViewModel() {
+        val countRepository = Repository()
+        val secondTask = countRepository.storedTask.copy(id = "second", markers = emptyList())
+        countRepository.tasks.value = listOf(countRepository.storedTask, secondTask)
+        start(countRepository)
+        lateinit var homeViewModel: HomeViewModel
+        composeRule.runOnIdle {
+            homeViewModel = currentViewModel()
+            navController.navigate(WorkRoute("draft"))
+        }
+        composeRule.waitForIdle()
+        lateinit var firstViewModel: CountViewModel
+        composeRule.runOnIdle {
+            firstViewModel = currentViewModel()
+            assertEquals("draft", firstViewModel.uiState.value.task?.id)
+            navController.navigate(WorkRoute("second"))
+        }
+        composeRule.waitForIdle()
+        composeRule.runOnIdle {
+            val secondViewModel = currentViewModel<CountViewModel>()
+            assertNotSame(firstViewModel, secondViewModel)
+            assertEquals("second", secondViewModel.uiState.value.task?.id)
+            assertEquals(0, secondViewModel.uiState.value.task?.count)
+            navController.popBackStack()
+        }
+        composeRule.waitForIdle()
+        composeRule.runOnIdle {
+            assertSame(firstViewModel, currentViewModel<CountViewModel>())
+            navController.popBackStack()
+        }
+        composeRule.waitForIdle()
+        composeRule.runOnIdle {
+            assertSame(homeViewModel, currentViewModel<HomeViewModel>())
+            navController.navigate(WorkRoute("draft"))
+        }
+        composeRule.waitForIdle()
+        composeRule.runOnIdle { assertNotSame(firstViewModel, currentViewModel<CountViewModel>()) }
+    }
+
+    @Test
+    fun savedNavigationStateKeepsWorkIdAndFailedCorrectionCanRetry() {
+        val countRepository = Repository().apply { hasSaveFailure = true }
+        val restorationTester = StateRestorationTester(composeRule)
+        start(countRepository, restorationTester = restorationTester)
+        openDraft()
+        composeRule.runOnIdle {
+            currentViewModel<CountViewModel>().dispatch(CountAction.Add(.7f, .7f))
+        }
+        composeRule.waitForIdle()
+        composeRule.runOnIdle {
+            assertTrue(currentViewModel<CountViewModel>().uiState.value.unsavedChanges)
+            assertEquals(2, currentViewModel<CountViewModel>().uiState.value.task?.count)
+        }
+        restorationTester.emulateSavedInstanceStateRestore()
+        composeRule.waitForIdle()
+        assertRoute<WorkRoute>()
+        composeRule.runOnIdle {
+            val viewModel = currentViewModel<CountViewModel>()
+            assertEquals("draft", viewModel.uiState.value.task?.id)
+            assertEquals(2, viewModel.uiState.value.task?.count)
+            assertTrue(viewModel.uiState.value.unsavedChanges)
+            countRepository.hasSaveFailure = false
+            viewModel.dispatch(CountAction.RetrySave)
+        }
+        composeRule.waitForIdle()
+        composeRule.runOnIdle {
+            assertFalse(currentViewModel<CountViewModel>().uiState.value.unsavedChanges)
+            assertEquals(2, countRepository.storedTask.count)
+        }
     }
 
     @Test
