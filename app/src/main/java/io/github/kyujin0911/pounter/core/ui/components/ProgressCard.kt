@@ -1,4 +1,4 @@
-package io.github.kyujin0911.pounter.feature.shared
+package io.github.kyujin0911.pounter.core.ui.components
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
@@ -15,7 +15,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
 @Composable
-fun ProgressCard(label: String, onCancel: (() -> Unit)? = null) {
+internal fun ProgressCard(label: String, onCancel: (() -> Unit)? = null) {
     Card(Modifier.fillMaxWidth()) {
         Row(
             Modifier.padding(16.dp),

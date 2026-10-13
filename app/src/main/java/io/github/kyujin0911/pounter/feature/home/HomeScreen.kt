@@ -32,9 +32,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.kyujin0911.pounter.core.model.CountTask
-import io.github.kyujin0911.pounter.feature.shared.MessageCard
+import io.github.kyujin0911.pounter.core.ui.components.MessageCard
+import io.github.kyujin0911.pounter.core.ui.components.ProgressCard
 import io.github.kyujin0911.pounter.feature.shared.PhotoImportUiState
-import io.github.kyujin0911.pounter.feature.shared.ProgressCard
 import io.github.kyujin0911.pounter.feature.shared.ValidationNotice
 import io.github.kyujin0911.pounter.feature.shared.formatTaskTimestamp
 

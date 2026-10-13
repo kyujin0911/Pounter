@@ -41,14 +41,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import io.github.kyujin0911.pounter.core.model.CountTask
 import io.github.kyujin0911.pounter.core.model.Region
-import io.github.kyujin0911.pounter.feature.shared.ConfirmDialog
+import io.github.kyujin0911.pounter.core.ui.components.ConfirmDialog
+import io.github.kyujin0911.pounter.core.ui.components.MessageCard
+import io.github.kyujin0911.pounter.core.ui.components.ProgressCard
 import io.github.kyujin0911.pounter.feature.shared.CountSummary
 import io.github.kyujin0911.pounter.feature.shared.DetailPhotoActions
 import io.github.kyujin0911.pounter.feature.shared.EditMode
-import io.github.kyujin0911.pounter.feature.shared.MessageCard
 import io.github.kyujin0911.pounter.feature.shared.PhotoImportUiState
 import io.github.kyujin0911.pounter.feature.shared.PhotoPanel
-import io.github.kyujin0911.pounter.feature.shared.ProgressCard
 import io.github.kyujin0911.pounter.feature.shared.TaskHeader
 import io.github.kyujin0911.pounter.feature.shared.ValidationNotice
 

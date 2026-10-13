@@ -1,4 +1,4 @@
-package io.github.kyujin0911.pounter.feature.shared
+package io.github.kyujin0911.pounter.core.ui.components
 
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
@@ -6,7 +6,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 
 @Composable
-fun ConfirmDialog(
+internal fun ConfirmDialog(
     title: String,
     body: String,
     confirm: String,
