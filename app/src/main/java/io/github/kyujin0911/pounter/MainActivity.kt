@@ -11,6 +11,6 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        setContent { PipeTheme { PipeNavigation((application as PipeApplication).repository) } }
+        setContent { PipeTheme { PipeNavigation() } }
     }
 }
