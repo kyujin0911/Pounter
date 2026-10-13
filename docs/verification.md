@@ -163,3 +163,17 @@ DI 초기화 테스트를 연결 전 실행하여 `KoinApplication has not been 
 - 강제 종료 재실행의 삭제 복구·미참조 사진 정리: 별도 테스트 데이터로 tombstone/미참조 파일을 준비하고 강제 종료·재실행한 뒤 DB/file 정합성 확인. 현재 Repository 복구 테스트와 Application 호출의 정적 확인만 수행했다.
 - 실기기 갤럭시 S22+·실제 카메라·회전: 대표 기기로 같은 수동 흐름·회전 확인. 이번 대상은 에뮬레이터이며 Activity 재생성만 실행했다.
 - 현장 자동 계수 성능·Hough 실험: 이번 요청의 제외 범위. 검증 대기 검출기를 유지했다.
+
+## 자동 계수 평가 구현 검증 — 2026-10-13
+
+`b1cd809` 승인 계획에서 `feat/auto-counting`으로 직접 실행했다. Task 1~5 구현, Task 6 평가 코드/규약 준비. 기존 사용자 변경/원본 사진은 사용하거나 커밋하지 않았다. 일반 앱 detector와 OpenCV 의존성의 제공 범위는 기존 검증 대기를 유지한다.
+
+- 포맷·debug 앱/test APK 빌드·JVM·Lint: `spotlessCheck assembleDebug assembleDebugAndroidTest testDebugUnitTest lintDebug` 통과. JVM 총 52개, 실패 0.
+- Small_Phone API36: AppUiTest, LargeFontUiTest, NavigationUiTest, DiInstrumentedTest, DetectionFlowUiTest, AnalysisMetadataInstrumentedTest, AnalysisPhotoInstrumentedTest, CompositeDetectorInstrumentedTest, EvaluationProtocolInstrumentedTest 총 34개 통과. DetectionEvaluationTest/DetectionAcceptanceTest 각 1개는 외부 manifest/config 미제공으로 skip. skip은 현장 합격이 아니다.
+- RepositoryInstrumentedTest: importEditReloadConfirmAndDelete, staleRevisionCannotOverwriteSavedChanges, interruptedDeletionIsCompletedOnStartup, invalidInputDoesNotReplaceExistingRecord, cancellationAfterInsertKeepsReferencedPhoto, legacyVersionOneDatabaseAndPayloadReopenWithoutMigration 6개 통과. 기존 Hough 프로토타입 메서드는 이 회귀 목록에서 실행하지 않았다. Task 6 실제 tuning 입력도 없으므로 현장 Hough 기준선 평가 미실행.
+- Task 1 메타데이터/기존 v1 SQL, Task 3 EXIF·입력·자원(4개), Task 4 합성 복합 검출·상한·직렬 취소(5개)는 API36/API36.1 양쪽에서 개별 통과.
+- 초기 새 타입 테스트는 미구현 API로 컴파일 실패했고, Task 5 저장 실패·snapshot 회귀 2개는 기존 구현의 assertion 실패를 확인한 뒤 통과했다. 환경/파서 오류는 기능 실패 증거와 구분한다. 초기 연쇄 통합 fixture는 포함 관계가 없던 동률 원 3개를 실제 포함되는 축/점수 차이의 연쇄로 수정했으며 기대 개수/포함 기준은 유지했다.
+- Task 4 첫 fixture는 앱 startup orphan 정리와 충돌했고, 테스트 사진을 별도 cache 저장소로 분리했다. OpenCV Gaussian 분리의 float convertTo에서 SIGILL을 확인해 양극성 국소 평균 분리로 바꾼 뒤 동일 테스트를 통과했다. 실제 기기 최적화·속도 증거가 아니다.
+- API36.1 UI 13개는 기존 Espresso의 InputManager.getInstance reflection 오류로 실패. 테스트 의존성 전체 업그레이드는 하지 않았고, API36에서 UI 13개를 다시 통과했다. API36.1 UI 호환성은 미검증/실패 상태로 남긴다.
+
+실사진의 정답 위치/개수·독립성·현장 고정 config가 없어 튜닝/독립 인수는 실행하지 않았다. S22+ 연결/성능, 5초 사용자 관찰 지연, peak 메모리, 보정 후 정답, 전체 검수 효용, OS 프로세스 종료와 force-stop은 검증 대기. 기존 Navigation의 StateRestorationTester/entry 동작과 이 현장 검증을 동일시하지 않는다. Task 7은 진행하지 않는다.

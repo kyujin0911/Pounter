@@ -26,6 +26,12 @@ class CompositePipeDetector(
     var initializationMillis: Long = 0
         private set
 
+    var rejectedCandidateCounts: Map<String, Int> = emptyMap()
+        private set
+
+    var candidateCounts: Map<CandidateSource, Int> = emptyMap()
+        private set
+
     override suspend fun detect(task: CountTask): Detection = detect(task) {}
 
     override suspend fun detect(task: CountTask, onStage: (AnalysisStage) -> Unit): Detection =
@@ -35,6 +41,9 @@ class CompositePipeDetector(
                 onStage(AnalysisStage.PROCESSING)
                 ensureActive()
                 val started = System.nanoTime()
+                initializationMillis = 0
+                candidateCounts = emptyMap()
+                rejectedCandidateCounts = emptyMap()
                 if (!initialized) {
                     val initStarted = System.nanoTime()
                     val success =
@@ -98,7 +107,16 @@ class CompositePipeDetector(
                                     throw DetectionFailure(DetectionFailureReason.INVALID_INPUT)
                                 Imgproc.cvtColor(crop, gray, Imgproc.COLOR_RGBA2GRAY)
                                 ensureActive()
-                                val candidates = CandidateExtractor.extract(gray, config)
+                                val rejected = mutableMapOf<String, Int>()
+                                val candidates =
+                                    CandidateExtractor.extract(gray, config) { reason ->
+                                        rejected[reason] = (rejected[reason] ?: 0) + 1
+                                    }
+                                rejectedCandidateCounts = rejected.toMap()
+                                candidateCounts =
+                                    CandidateSource.entries.associateWith { source ->
+                                        candidates.count { source in it.sources }
+                                    }
                                 ensureActive()
                                 // Crop origin is in decoded pixels; convert with the actual
                                 // per-axis scale.

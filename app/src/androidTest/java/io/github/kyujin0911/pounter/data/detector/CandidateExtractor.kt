@@ -7,7 +7,11 @@ import org.opencv.core.*
 import org.opencv.imgproc.Imgproc
 
 object CandidateExtractor {
-    suspend fun extract(gray: Mat, config: DetectionConfig): List<EllipseCandidate> {
+    suspend fun extract(
+        gray: Mat,
+        config: DetectionConfig,
+        onRejected: (String) -> Unit = {},
+    ): List<EllipseCandidate> {
         val blurred = Mat()
         val edges = Mat()
         val binary = Mat()
@@ -42,12 +46,16 @@ object CandidateExtractor {
                     for (contour in contours) {
                         coroutineContext.ensureActive()
                         val points = contour.toArray()
-                        if (points.size < 5) continue
+                        if (points.size < 5) {
+                            onRejected("POINT_COUNT")
+                            continue
+                        }
                         val curve = MatOfPoint2f(*points)
                         val ellipse =
                             try {
                                 Imgproc.fitEllipse(curve)
                             } catch (_: CvException) {
+                                onRejected("FIT_FAILURE")
                                 continue
                             } finally {
                                 curve.release()
@@ -61,8 +69,10 @@ object CandidateExtractor {
                                 minor < config.minSemiAxisPx ||
                                 major > config.maxSemiAxisPx ||
                                 major / minor > config.maxAxisRatio
-                        )
+                        ) {
+                            onRejected("GEOMETRY")
                             continue
+                        }
                         val angle =
                             (ellipse.angle +
                                 if (ellipse.size.width < ellipse.size.height) 90 else 0) * PI / 180
@@ -132,7 +142,7 @@ object CandidateExtractor {
                                 )
                             if (candidates.size >= config.maxCandidates)
                                 throw DetectionFailure(DetectionFailureReason.CANDIDATE_SATURATION)
-                        }
+                        } else onRejected("QUALITY")
                     }
                 } finally {
                     contours.forEach { it.release() }
