@@ -48,6 +48,7 @@ Navigation Compose의 타입 안전 경로로 목록·계수 작업·확정 기�
 
 상세 기준은 [Git 운영 규칙](docs/git_workflow.md). GitHub Flow의 main + 작업 유형별 목적 브랜치를 사용한다. 이름은 <type>/<Issue번호>-<짧은-작업명>, 실제 Issue가 없으면 <type>/<짧은-작업명>. type은 feat/fix/refactor/docs/test/build/chore이며 사람과 Codex 모두 동일하게 적용한다. codex/ 접두사는 신규 작업에 사용하지 않는다. Git 운영 규칙 작성 당시 main과 저장된 origin/main은 db5490e로 같았고 origin 등록이 존재했다. 2026-10-12 구조 작업 기준은 e30d20c였으며 최신 네이밍 결정은 [D-16](docs/decision_log.md#d-16-작업-유형-우선-브랜치-네이밍)을 따른다. 원격 서버 최신 상태·보호 설정은 조회하지 않았다. 기존 D-08의 'main/원격 없음'은 당시 사실이며 이후 상태는 [D-13](docs/decision_log.md#d-13-git-운영-규칙과-템플릿)을 따른다.
 
+- 브랜치 생성 직전에 실제 작업 공간의 AGENTS.md·Git 운영 규칙·최신 유효 결정을 읽고 선택한 type/작업명/실제 Issue 번호를 대조한다. worktree 준비·기준 변경·merge·충돌 해결로 지침이 바뀌면 다시 확인한다. Git 문법 검사만으로 프로젝트 규칙 준수를 대신하지 않는다. 상세는 [생성 직전 규칙 대조](docs/git_workflow.md#생성-직전-규칙-대조)를 따른다.
 - 같은 목적의 미병합 브랜치는 재사용, 완료된 브랜치는 최신 main에서 새 작업으로 시작한다. 이번 문서 작업은 미병합 구조 작업 refactor/1-code-structure의 196662f에서 docs/branch-naming으로 분리했다. 기존 codex/1-code-structure는 같은 커밋/이력을 유지하며 로컬 이름만 변경했다. 선행 작업 의존을 숨기거나 다른 기존 브랜치를 일괄 변경하지 않는다.
 - Issue는 동일 작업을 먼저 확인하고 목적·범위·완료 조건·검증 계획을 기록한다. 선행 관계를 연결하며 Issue 생성만으로 구현/원격 작업을 허가받은 것으로 간주하지 않는다. 상세는 Git 운영 규칙과 두 Issue 템플릿 참조.
 - 영어 type/scope + 한국어 설명의 Conventional Commits. 구체적 변경·실제 검증만 기록한다. 기존 이력을 컨벤션에 맞춰 재작성하지 않는다.
