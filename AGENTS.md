@@ -13,7 +13,7 @@
 - [디자인·화면 명세](docs/design_spec.md): 공개 레퍼런스의 확인 범위, 화면 상태·디자인 초안.
 - [디자인 시스템](docs/design_system.md): 아이콘 기반 토큰·업무 컴포넌트·상태·화면 패턴과 UI 검증 기준. UI 디자인·구현·리뷰 시 따르며 제품 범위·이동 정책은 PRD와 화면 명세가 우선한다.
 - [Compose 컴포넌트 규칙](docs/compose_components.md): 재사용 판단·Modifier·값/이벤트·슬롯·상태 소유와 컴포넌트 계약. 현재/후속 UI 작업에서 디자인 시스템과 함께 적용한다.
-- [코드 컨벤션](docs/code_conventions.md): 변수 네이밍과 후속 구조 정리의 적용 기준.
+- [코드 컨벤션](docs/code_conventions.md): 변수 네이밍·재사용 UI의 패키지 위치와 의존 방향·후속 구조 정리의 적용 기준.
 - [Git 운영 규칙](docs/git_workflow.md): 브랜치·커밋·PR·병합 정책의 단일 기준.
 - [결정 기록](docs/decision_log.md): 날짜·상태·대체 관계·선택 이유. 폐기된 제안을 활성 요구사항으로 재사용하지 않음.
 - [환경 기록](docs/environment.md), [검증 이력](docs/verification.md): 확인 시점의 사실. 최신 요구사항이나 새 실행 결과를 대신하지 않음.

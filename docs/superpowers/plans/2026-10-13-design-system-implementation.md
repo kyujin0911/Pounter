@@ -8,7 +8,7 @@
 
 **Tech Stack:** Kotlin 2.1.21, Compose UI/Foundation 1.8.3, Material 3 1.3.2, Navigation Compose 2.9.8, JDK 17, 기존 JUnit4/Compose UI Test, 기존 Spotless/ktfmt.
 
-**Spec:** [Compose 컴포넌트 규칙](../../compose_components.md), [디자인 시스템 0.2](../../design_system.md), [비교 시안](../../design_system_board.html), [화면 명세](../../design_spec.md), [PRD](../../../PRD.md). HTML은 레이아웃 참고이며 dp/sp·상태 로직·실제 사진 검증 기준은 명세를 따른다.
+**Spec:** [코드 컨벤션의 패키지 관리](../../code_conventions.md#재사용-ui의-패키지-관리--2026-10-13-추가), [Compose 컴포넌트 규칙](../../compose_components.md), [디자인 시스템 0.2](../../design_system.md), [비교 시안](../../design_system_board.html), [화면 명세](../../design_spec.md), [PRD](../../../PRD.md). HTML은 레이아웃 참고이며 dp/sp·상태 로직·실제 사진 검증 기준은 명세를 따른다.
 
 ## Global Constraints
 
@@ -23,6 +23,7 @@
 - _uiState/uiState·역할/단위 이름 규칙 유지. 직렬화 key·Room·Navigation 인자·앱 ID·사진 보존 형식 변경 금지.
 - 새 라이브러리/모듈/DI/UseCase/전역 상태·새 탭·스와이프 삭제·검출기 구현·런처 아이콘 변경은 제외한다. 사진·외부 로고 원본·개인 경로·캡처 이미지는 커밋하지 않는다.
 - 문안 충돌은 컴포넌트 계약/시안/현재 확정 대화상자에 맞춰 'N개 확인하고 확정'으로 통일한다. 실제 저장 성공 후에만 '사용자 확인 완료'를 표시한다.
+- UI 위치/승격/의존 방향/가시성은 코드 컨벤션의 재사용 UI 패키지 관리 절을 따른다. 일반 디자인 UI는 core/ui/components, 업무 공유 UI는 feature/shared, 기능 전용 UI는 해당 feature. 패키지 이름만으로 모듈 경계가 강제된다고 보고하지 않는다.
 - 현재/후속 UI는 Compose 컴포넌트 규칙의 추출 기준·Modifier 루트 1회·값/이벤트·슬롯 수명을 따른다. 새 상태/슬롯 API·파일 배치는 그 문서 4절이 기준이며 컴포넌트 안에서 VM/Repository/NavController를 사용하지 않는다.
 
 ## Review Focus
@@ -50,19 +51,21 @@
 | 작업 | 만들거나 변경할 파일 | 책임 |
 |---|---|---|
 | 1 | M/core/ui/theme/{PipeTheme,PipeColors,PipeTypography,PipeShapes,PipeDimensions}.kt | 기존 테마 확장. 역할 색·문자·형태·간격 값 |
-| 2 | M/feature/shared/{CountSummary,TaskHeader,ProgressCard,MessageCard,ValidationNotice}.kt; 새 StatusLabel.kt, NoticeCard.kt, RecoveryNotice.kt | 공통 업무 상태·복구 안내. 동작은 콜백으로만 전달 |
+| 2 | M/feature/shared/{CountSummary,TaskHeader,ValidationNotice}.kt; 새 StatusLabel.kt, RecoveryNotice.kt; M/core/ui/components/{NoticeCard,MessageCard,ProgressCard,ConfirmDialog}.kt | 공통 업무 상태·복구 안내. 동작은 콜백으로만 전달 |
 | 3 | M/feature/home/HomeScreen.kt; 새 PhotoInputCard.kt, RecordCard.kt | 입력과 기록 목록 표현 |
 | 4 | M/feature/count/CountWorkScreen.kt; M/feature/shared/PhotoPanel.kt; 새 M/feature/count/CorrectionToolbar.kt, ConfirmAction.kt; 새 M/feature/shared/PhotoLayout.kt | 보정 조작·사진 가용 크기·확정 접근 |
-| 5 | M/feature/record/RecordScreen.kt; M/feature/shared/{DetailPhotoActions,ConfirmDialog}.kt | 읽기 전용 기록과 분리된 삭제 |
-| 6 | I/{AppUiTest,NavigationUiTest,LargeFontUiTest}.kt; app/src/debug/java/io/github/kyujin0911/pounter/DesignPreviews.kt; docs/{verification,design_spec,design_system,compose_components}.md | 통합 회귀·Preview·실제 화면 확인과 적용 상태 기록 |
+| 5 | M/feature/record/RecordScreen.kt; M/feature/shared/DetailPhotoActions.kt; M/core/ui/components/ConfirmDialog.kt | 읽기 전용 기록과 분리된 삭제 |
+| 6 | I/{AppUiTest,NavigationUiTest,LargeFontUiTest}.kt; app/src/debug/java/io/github/kyujin0911/pounter/preview/DesignPreviews.kt; docs/{verification,design_spec,design_system,compose_components,code_conventions}.md | 통합 회귀·Preview·실제 화면 확인과 적용 상태 기록 |
 
 설계의 PhotoViewport/PhotoDisplayTools는 별도 래퍼를 만들지 않고 기존 PhotoPanel의 사진·보기 도구로 구현한다. OperationNotice는 ProgressCard, DestructiveDialog는 ConfirmDialog를 재사용한다. 테마 token 접근을 위해 새 CompositionLocal 프레임워크를 만들지 않는다.
 
-NoticeCard는 실제 네 소비자(진행·검증 대기·오류·복구)의 공통 표면/본문/조작 슬롯만 맡는다. 기능 내부 CorrectionToolbar/ConfirmAction은 feature/count에 둔다. PhotoLayout은 계수·완료 두 화면이 사용하는 helper라 shared에 둔다. Task2의 ComponentContractUiTest가 재사용 API의 루트·슬롯 계약을 검증한다. Task6의 Preview는 app/src/debug/java/io/github/kyujin0911/pounter/DesignPreviews.kt에만 작성한다.
+일반 UI의 실제 이동 목록은 MessageCard/ProgressCard/ConfirmDialog → core/ui/components이다. 기능 소비자와 테스트는 새 import를 사용하고 옛 파일/forwarding wrapper를 남기지 않는다. 신규 테스트/Preview 경로와 runner FQCN도 아래 파일 지도/각 Task의 경로를 사용한다.
+
+NoticeCard는 실제 네 소비자(진행·검증 대기·오류·복구)의 공통 표면/본문/조작 슬롯만 맡는다. 기능 내부 CorrectionToolbar/ConfirmAction은 feature/count에 둔다. PhotoLayout은 계수·완료 두 화면이 사용하는 helper라 shared에 둔다. Task2의 ComponentContractUiTest가 재사용 API의 루트·슬롯 계약을 검증한다. Task6의 Preview는 app/src/debug/java/io/github/kyujin0911/pounter/preview/DesignPreviews.kt에만 작성한다.
 
 ### Task 1: 브랜드 테마 적용
 
-**Files:** Create M/core/ui/theme/PipeColors.kt, PipeTypography.kt, PipeShapes.kt, PipeDimensions.kt; Modify M/core/ui/theme/PipeTheme.kt; Test Create U/DesignTokensTest.kt.
+**Files:** Create M/core/ui/theme/PipeColors.kt, PipeTypography.kt, PipeShapes.kt, PipeDimensions.kt; Modify M/core/ui/theme/PipeTheme.kt; Test Create U/core/ui/theme/DesignTokensTest.kt.
 
 **Interfaces:** Consumes 기존 `PipeTheme(dark: Boolean = isSystemInDarkTheme(), content: @Composable () -> Unit)`. Produces 동일 서명, `internal val PipeLightColors: ColorScheme`, `PipeDarkColors: ColorScheme`, `PipeTypography: Typography`, `PipeShapes: Shapes`, `object PipeDimensions`의 `screenInset=16.dp`, `cardInset=16.dp`, `inputCardInset=20.dp`, `controlGap=8.dp`, `groupGap=16.dp`, `sectionGap=24.dp`, `primaryActionMinHeight=56.dp`, `touchTargetMinSize=48.dp`, `readingMaxWidth=600.dp`.
 
@@ -75,11 +78,13 @@ NoticeCard는 실제 네 소비자(진행·검증 대기·오류·복구)의 공
 
 ### Task 2: 개수·상태·복구 컴포넌트
 
-**Files:** Modify M/feature/shared/CountSummary.kt, TaskHeader.kt, ProgressCard.kt, MessageCard.kt, ValidationNotice.kt; Create M/feature/shared/StatusLabel.kt, NoticeCard.kt, RecoveryNotice.kt; Test Create I/DesignStatusUiTest.kt, I/ComponentContractUiTest.kt, I/DesignFixtures.kt.
+**Files:** Move M/feature/shared/MessageCard.kt, ProgressCard.kt, ConfirmDialog.kt → M/core/ui/components/의 동명 파일; Modify M/feature/shared/CountSummary.kt, TaskHeader.kt, ValidationNotice.kt; Modify M/feature/home/HomeScreen.kt, feature/count/CountWorkScreen.kt, feature/record/RecordScreen.kt의 이동 심벌 import; Create M/feature/shared/StatusLabel.kt, RecoveryNotice.kt; Create M/core/ui/components/NoticeCard.kt; Test Create I/feature/shared/DesignStatusUiTest.kt, I/core/ui/components/ComponentContractUiTest.kt, I/feature/shared/DesignFixtures.kt.
 
 **Interfaces:** Consumes Task 1 테마와 core.model.CountTask. Produces `CountSummary(task: CountTask, modifier: Modifier = Modifier)`, `StatusLabel(status: TaskStatus, modifier: Modifier = Modifier)`와 `internal fun taskStatus(task: CountTask): TaskStatus`, `RecoveryNotice(message: String, onRetry: () -> Unit, modifier: Modifier = Modifier)`. TaskStatus/NoticeTone/NoticeCard 및 TaskHeader/ProgressCard/MessageCard/ValidationNotice 서명은 Compose 컴포넌트 규칙 4절 그대로 적용한다. 기존 필수 인자는 유지하고 첫 선택 인자로 modifier를 제공한다. 모든 변경 호출부는 named arguments로 정리한다. Fixture `internal fun designTask(markerCount: Int = 0, analyzed: Boolean = false, confirmed: Boolean = false): CountTask`, `internal fun designBitmap(): Bitmap`.
 
-- [ ] **Step 1: 실패 UI 테스트 작성** — createComposeRule+PipeTheme 사용. Fixture는 id='design-fixture', photoName='synthetic.png', width=900, height=650, createdAt=0L, confirmedAt은 confirmed이면 1000L; markerCount개 고유 manual Marker를 20열 격자에 .05~.95 정규화 좌표·radius=.01f로 생성. bitmap은 900×650 중립 합성 그림; 파일·DB 접근 없음. `unanalyzedIsNotZero`는 analyzed=false에서 '분석 전'·'—' 존재/‘0개’ 없음, `analyzedZeroIsNotConfirmed`는 analyzed=true·0에서 '0개'·'확인 전'/완료 없음, `confirmedSummaryKeepsTimestampAndHasNoFalseAutomaticClaim`은 12개 완료·시각·수동 출처를 검사. RecoveryNotice 테스트는 '저장되지 않은 변경' 지속/재시도 클릭 1회/onRetry 1회.
+- [ ] **Step 1: 일반 UI 패키지 이동** — 구조 변경 결합 상태에서 MessageCard/ProgressCard/ConfirmDialog를 core/ui/components로 이동, package 선언·Home/Count/Record import·테스트의 해당 import를 갱신한다. 아직 문안/서명/상태 동작은 바꾸지 않는다. NoticeCard 새 파일은 계약 구현 단계에 만든다. private helper 유지, 모듈 내 UI는 internal을 기본으로 하고 타입/함수 가시성 일치 확인.
+- [ ] **Step 2: 이동만의 회귀·커밋** — `./gradlew assembleDebug testDebugUnitTest lintDebug spotlessCheck`, 기존 AppUiTest/NavigationUiTest 실행. `rg -n 'import io\.github\.kyujin0911\.pounter\.feature\.shared\.(MessageCard|ProgressCard|ConfirmDialog)' app/src` 결과 0건, core/ui/components에서 feature/data/navigation/core.model import 0건, theme→components import 0건을 확인한다. 패키지 구분은 import/diff 리뷰이고 별도 강제 도구는 추가하지 않는다. 이동 파일·제거된 원본·소비자 import·테스트 import만 stage하고 `git commit -m 'refactor(ui): 일반 공유 UI를 디자인 컴포넌트 패키지로 이동'`.
+- [ ] **Step 3: 실패 UI 테스트 작성** — createComposeRule+PipeTheme 사용. Fixture는 id='design-fixture', photoName='synthetic.png', width=900, height=650, createdAt=0L, confirmedAt은 confirmed이면 1000L; markerCount개 고유 manual Marker를 20열 격자에 .05~.95 정규화 좌표·radius=.01f로 생성. bitmap은 900×650 중립 합성 그림; 파일·DB 접근 없음. `unanalyzedIsNotZero`는 analyzed=false에서 '분석 전'·'—' 존재/‘0개’ 없음, `analyzedZeroIsNotConfirmed`는 analyzed=true·0에서 '0개'·'확인 전'/완료 없음, `confirmedSummaryKeepsTimestampAndHasNoFalseAutomaticClaim`은 12개 완료·시각·수동 출처를 검사. RecoveryNotice 테스트는 '저장되지 않은 변경' 지속/재시도 클릭 1회/onRetry 1회.
 
 `unanalyzedIsNotZero`의 핵심 assertions(각 UI 테스트 class에서 `rule = createComposeRule()`):
 ```kotlin
@@ -105,15 +110,15 @@ rule.onNodeWithTag("notice-root").assertWidthIsEqualTo(240.dp).performClick()
 assertEquals(1, clicks)
 ```
 두 번째 테스트는 Notice 본문 안 remember 카운터를 버튼으로 1 증가시킨 뒤, 외부 tone을 ERROR로 전환하고 actions 슬롯을 추가/제거한다. 매번 '본문 횟수 1' 노드는 정확히 하나여야 한다. 세 번째는 title/actions=null에서 본문만 존재하고, actions에 실제 TextButton을 제공한 경우 표시·클릭 callback 1회 및 본문 위치의 안정성을 검사한다. remember 테스트는 색 변경 때 content를 두 분기에 배치하는 잘못된 구현을 검출한다.
-- [ ] **Step 2: RED 확인** — `./gradlew connectedDebugAndroidTest '-Pandroid.testInstrumentationRunnerArguments.class=io.github.kyujin0911.pounter.DesignStatusUiTest,io.github.kyujin0911.pounter.ComponentContractUiTest'`. 기존 '0'/‘확정됨’ 문안과 새 계약 불일치 또는 새 함수 미정의가 실패 원인이어야 한다.
-- [ ] **Step 3: 공통 UI 구현** — CountSummary는 number/status/단위가 줄바꿈 가능하게 구성하고 StatusLabel은 클릭 없는 텍스트+보조 아이콘. 미분석/0/완료 규칙을 따른다. count-value는 분석 후 'N개', 미분석 '—'; 설명은 완료면 '확인한 개수', 아니면 '현재 개수'다. 기존 CountTask 계산을 재구현하지 않는다. ProgressCard는 중립 색·접근성 상태; ValidationNotice는 중립 안내·현재 수동 기능 유지; RecoveryNotice는 errorContainer·명확한 재시도. MessageCard는 실제 오류 전용으로 유지하며 임의 문자열로 오류/안내를 판정하지 않는다. 주요 상태 bodyMedium 이상, heading/stateDescription/liveRegion은 의미가 맞는 요소에만 설정한다.
-- [ ] **Step 4: NoticeCard 계약 구현·소비자 연결** — Compose 컴포넌트 규칙 4절의 NoticeTone/NoticeCard 선언을 구현하고 ProgressCard·ValidationNotice·MessageCard·RecoveryNotice에서 사용한다. modifier는 Surface 루트에 1회, content는 안정된 Column 위치에 1회, title/actions null이면 해당 영역/간격을 만들지 않는다. 각 업무 함수는 문구·callback만 구성하고 Action 변환은 화면에 둔다. TaskHeader도 전달 modifier를 루트 Row에 1회 적용한다.
-- [ ] **Step 5: GREEN 확인** — Step 2 명령 재실행. 라이트·다크 300개 summary 캡처에서 개수/단위/상태 미잘림을 관찰하되 캡처를 Git에 넣지 않는다.
-- [ ] **Step 6: 커밋** — 위 shared 파일과 세 테스트 파일만 stage·diff 검사; `git commit -m 'feat(design): 상태와 슬롯 기반 안내 컴포넌트 적용'`.
+- [ ] **Step 4: RED 확인** — `./gradlew connectedDebugAndroidTest '-Pandroid.testInstrumentationRunnerArguments.class=io.github.kyujin0911.pounter.feature.shared.DesignStatusUiTest,io.github.kyujin0911.pounter.core.ui.components.ComponentContractUiTest'`. 기존 '0'/‘확정됨’ 문안과 새 계약 불일치 또는 새 함수 미정의가 실패 원인이어야 한다.
+- [ ] **Step 5: 공통 UI 구현** — CountSummary는 number/status/단위가 줄바꿈 가능하게 구성하고 StatusLabel은 클릭 없는 텍스트+보조 아이콘. 미분석/0/완료 규칙을 따른다. count-value는 분석 후 'N개', 미분석 '—'; 설명은 완료면 '확인한 개수', 아니면 '현재 개수'다. 기존 CountTask 계산을 재구현하지 않는다. ProgressCard는 중립 색·접근성 상태; ValidationNotice는 중립 안내·현재 수동 기능 유지; RecoveryNotice는 errorContainer·명확한 재시도. MessageCard는 실제 오류 전용으로 유지하며 임의 문자열로 오류/안내를 판정하지 않는다. 주요 상태 bodyMedium 이상, heading/stateDescription/liveRegion은 의미가 맞는 요소에만 설정한다.
+- [ ] **Step 6: NoticeCard 계약 구현·소비자 연결** — Compose 컴포넌트 규칙 4절의 NoticeTone/NoticeCard 선언을 구현하고 ProgressCard·ValidationNotice·MessageCard·RecoveryNotice에서 사용한다. modifier는 Surface 루트에 1회, content는 안정된 Column 위치에 1회, title/actions null이면 해당 영역/간격을 만들지 않는다. 각 업무 함수는 문구·callback만 구성하고 Action 변환은 화면에 둔다. TaskHeader도 전달 modifier를 루트 Row에 1회 적용한다.
+- [ ] **Step 7: GREEN 확인** — Step 4 명령 재실행. 라이트·다크 300개 summary 캡처에서 개수/단위/상태 미잘림을 관찰하되 캡처를 Git에 넣지 않는다.
+- [ ] **Step 8: 커밋** — 위 core/shared 파일과 해당 소비자 import, 세 테스트 파일만 stage·diff 검사; `git commit -m 'feat(design): 상태와 슬롯 기반 안내 컴포넌트 적용'`.
 
 ### Task 3: 홈의 입력·기록 패턴
 
-**Files:** Modify M/feature/home/HomeScreen.kt; Create M/feature/home/PhotoInputCard.kt, RecordCard.kt; Test Create I/HomeDesignUiTest.kt; Modify I/LargeFontUiTest.kt.
+**Files:** Modify M/feature/home/HomeScreen.kt; Create M/feature/home/PhotoInputCard.kt, RecordCard.kt; Test Create I/feature/home/HomeDesignUiTest.kt; Modify I/LargeFontUiTest.kt.
 
 **Interfaces:** Consumes Task 1/2. Produces `PhotoInputCard(canStart: Boolean, onCamera: () -> Unit, onPick: () -> Unit, modifier: Modifier = Modifier)`, `RecordCard(task: CountTask, canOpen: Boolean, onOpen: (CountTask) -> Unit, modifier: Modifier = Modifier)`. HomeScreen 기존 서명 유지.
 
@@ -126,14 +131,14 @@ rule.onNodeWithText("사진 선택").assertIsNotEnabled()
 assertEquals(0, openedRecords.size)
 ```
 `openedRecords`는 테스트에서 정의한 `mutableListOf<CountTask>()`이며 HomeScreen.onOpen은 목록에 추가하는 콜백이다. 첫 정상 변형과 가져오기 변형은 하나의 `mutableStateOf(PhotoImportUiState())`로 변경하고 setContent를 중복 호출하지 않는다.
-- [ ] **Step 2: RED 확인** — `./gradlew connectedDebugAndroidTest '-Pandroid.testInstrumentationRunnerArguments.class=io.github.kyujin0911.pounter.HomeDesignUiTest,io.github.kyujin0911.pounter.LargeFontUiTest'`.
+- [ ] **Step 2: RED 확인** — `./gradlew connectedDebugAndroidTest '-Pandroid.testInstrumentationRunnerArguments.class=io.github.kyujin0911.pounter.feature.home.HomeDesignUiTest,io.github.kyujin0911.pounter.LargeFontUiTest'`.
 - [ ] **Step 3: 홈 구현** — 중립 시작 카드·파란 촬영/Outlined 선택, 안내 '한 묶음의 모든 단면이 보이도록 정면에서 촬영하세요.'와 검증 대기/보존 설명. RecordCard는 전체 열기 하나·surfaceContainerLow·날짜·수동/자동 출처·상태. 기존 정렬/Repository 관찰·onOpen 조건 유지. 홈 제목은 기존 문자열 Pounter 유지하며 새 원본 로고 에셋 추가는 하지 않는다. content testTag와 기존 탐색 문맥 보존.
 - [ ] **Step 4: GREEN 확인** — Step 2 명령. 360dp 폭·fontScale 2.0에서 버튼/기록/안내에 스크롤 도달. 단위/날짜 말줄임 금지, 중요 설명 14sp 이상.
 - [ ] **Step 5: 커밋** — 홈 파일과 관련 테스트만 stage·diff 검사; `git commit -m 'feat(design): 촬영 입력과 기록 카드의 우선순위 정리'`.
 
 ### Task 4: 사진·보정·확정 접근성
 
-**Files:** Modify M/feature/count/CountWorkScreen.kt, M/feature/shared/PhotoPanel.kt; Create M/feature/count/CorrectionToolbar.kt, ConfirmAction.kt; Create M/feature/shared/PhotoLayout.kt; Test Create U/PhotoLayoutTest.kt, I/CountDesignUiTest.kt, I/PhotoPanelDesignUiTest.kt; Modify I/AppUiTest.kt, I/NavigationUiTest.kt의 조작 위치 helper만 필요 시 갱신.
+**Files:** Modify M/feature/count/CountWorkScreen.kt, M/feature/shared/PhotoPanel.kt; Create M/feature/count/CorrectionToolbar.kt, ConfirmAction.kt; Create M/feature/shared/PhotoLayout.kt; Test Create U/feature/shared/PhotoLayoutTest.kt, I/feature/count/CountDesignUiTest.kt, I/feature/shared/PhotoPanelDesignUiTest.kt; Modify I/AppUiTest.kt, I/NavigationUiTest.kt의 조작 위치 helper만 필요 시 갱신.
 
 **Interfaces:** Consumes Task 1/2와 기존 CountUiState/CountAction/EditMode. Produces `CorrectionToolbar(mode: EditMode, canEdit: Boolean, canUndo: Boolean, onModeChange: (EditMode) -> Unit, onUndo: () -> Unit, modifier: Modifier = Modifier)`, `ConfirmAction(count: Int, canConfirm: Boolean, isSaving: Boolean, onConfirm: () -> Unit, modifier: Modifier = Modifier)`.
 
@@ -162,7 +167,7 @@ assertEquals(listOf(CountAction.RetrySave), dispatched)
 
 CountDesignUiTest의 `modeRemainsCallerControlled`은 toolbar의 mode=VIEW와 onModeChange 수신 목록을 고정해 놓고 '추가'를 클릭한다. 요청은 ADD 1회, 외부 값 변경 전에는 '이동' selected=true와 '추가' selected=false를 검사한다. 이후 호출자가 mode=ADD로 변경하면 선택이 반영된다. canEdit=false에서는 추가 요청이 없어야 한다. 이는 내부에서 부모 상태를 복제해 고치는 구현을 검출한다.
 - [ ] **Step 3: 실패 사진 UI 테스트 작성** — `correctionKeepsZoomForSameTask`는 합성 bitmap에서 확대 후 같은 id의 task를 보정하여 recomposition하고 확대 상태가 그대로인지 semantics로 검사. PhotoPanel 사진 Canvas에 `photo-viewport` 태그와 stateDescription '확대 N배'를 제공한다. `resizedViewportAddsAtCorrectNormalizedPoint`는 240/180dp viewport에서 동일 단면 위치 탭 콜백의 x/y가 .01 이내로 같은지 검사. `overlapSelectionAndAlternativePositionControlsRemainAvailable`는 겹친 marker 선택 대화상자와 기존 위치 조절/이 위치에 추가 경로를 검사한다. 색·사진만 보고 자동/수동을 추정하지 않는다.
-- [ ] **Step 4: RED 확인** — `./gradlew testDebugUnitTest --tests '*PhotoLayoutTest'`; `./gradlew connectedDebugAndroidTest '-Pandroid.testInstrumentationRunnerArguments.class=io.github.kyujin0911.pounter.CountDesignUiTest,io.github.kyujin0911.pounter.PhotoPanelDesignUiTest'`.
+- [ ] **Step 4: RED 확인** — `./gradlew testDebugUnitTest --tests '*PhotoLayoutTest'`; `./gradlew connectedDebugAndroidTest '-Pandroid.testInstrumentationRunnerArguments.class=io.github.kyujin0911.pounter.feature.count.CountDesignUiTest,io.github.kyujin0911.pounter.feature.shared.PhotoPanelDesignUiTest'`.
 - [ ] **Step 5: 사진 레이아웃·도구 구현** — BoxWithConstraints/LocalDensity로 inset 후 크기와 fontScale을 읽는다. summary/사진/보기 도구/보정/확정 순서. pin true면 Scaffold.bottomBar에 ConfirmAction, false면 content의 scroll item에 배치하며 동시에 두 번 표시하지 않는다. PhotoPanel modifier는 전체 Column 루트에 1회, Canvas만 전달 높이로 변경하고 geometry/pointerInput/marker ID·집계·pan 유지·대체 입력을 보존한다. 사진 배경 중립색, 기존 마커색/원형·사각형·이중 테두리는 유지한다. 하늘색 단독 표시로 교체하지 않는다. CorrectionToolbar/ConfirmAction도 modifier를 각각 루트에 적용하며 task/UI 상태를 내부 캐시로 복제하지 않는다.
 - [ ] **Step 6: 상태·동작 연결** — canEdit 기존 `!isBusy && !unsavedChanges`와 task의 confirmed/analyzed 제한을 유지한다. ConfirmAction의 enabled도 기존 규칙, 클릭은 기존 confirm dialog만 연다. 복구 시 RecoveryNotice로 RetrySave 전달; 저장 중은 기존 상태의 의미까지만 문구화한다. 연산 종류를 문자열이나 확인 대화상자 닫힘으로 추정하지 않는다. 번호·영역·사진 교체·미제공 자동 상태·미저장 뒤로 가기 보호를 유지한다.
 - [ ] **Step 7: GREEN·기존 회귀** — Step 4 명령과 `./gradlew testDebugUnitTest --tests '*CountViewModelTest' --tests '*ModelTest'`; AppUiTest/NavigationUiTest 실행. 고정 CTA 도입 시 scroll helper는 대상이 이미 표시되면 클릭, 아니면 content로 scroll하도록 조정하고 기존 저장/좌표/assertRoute 기대를 유지한다. 문안 변경에만 기대 텍스트 갱신.
@@ -170,7 +175,7 @@ CountDesignUiTest의 `modeRemainsCallerControlled`은 toolbar의 mode=VIEW와 on
 
 ### Task 5: 읽기 전용 완료 기록
 
-**Files:** Modify M/feature/record/RecordScreen.kt, M/feature/shared/DetailPhotoActions.kt, ConfirmDialog.kt; Modify M/feature/count/CountWorkScreen.kt의 ConfirmDialog 명명 인자 호출만; Test Create I/RecordDesignUiTest.kt; Modify I/AppUiTest.kt의 완료 문안 기대만 필요한 범위.
+**Files:** Modify M/feature/record/RecordScreen.kt, M/feature/shared/DetailPhotoActions.kt, M/core/ui/components/ConfirmDialog.kt; Modify M/feature/count/CountWorkScreen.kt의 ConfirmDialog 명명 인자 호출만; Test Create I/feature/record/RecordDesignUiTest.kt; Modify I/AppUiTest.kt의 완료 문안 기대만 필요한 범위.
 
 **Interfaces:** Consumes Task 2/4와 기존 RecordUiState/RecordAction. RecordScreen 기존 공개 서명 유지. DetailPhotoActions/ConfirmDialog는 Compose 컴포넌트 규칙 4절 modifier 포함 서명으로 갱신하며 onDelete/onConfirm을 모든 소비자에서 명명 인자로 전달한다. 사진 높이는 Task 4 helper를 사용하고 canEdit=false 유지.
 
@@ -184,14 +189,14 @@ rule.onNodeWithTag("confirm-action").assertDoesNotExist()
 rule.onNodeWithText("수동 표시 시작").assertDoesNotExist()
 rule.onNodeWithText("추가", substring = false).assertDoesNotExist()
 ```
-- [ ] **Step 2: RED 확인** — `./gradlew connectedDebugAndroidTest '-Pandroid.testInstrumentationRunnerArguments.class=io.github.kyujin0911.pounter.RecordDesignUiTest'`.
+- [ ] **Step 2: RED 확인** — `./gradlew connectedDebugAndroidTest '-Pandroid.testInstrumentationRunnerArguments.class=io.github.kyujin0911.pounter.feature.record.RecordDesignUiTest'`.
 - [ ] **Step 3: 기록 UI 구현** — 사용자 확인 완료 라벨·개수/시각·읽기 전용 사진·보기 도구를 먼저 배치. DetailPhotoActions의 새 입력은 별도 작업 보존 설명을 유지하고 삭제를 별도 행·오류색으로 분리. 삭제 dialog 기존 영향/취소/성공 후 이동 보존. 사진 실패에 가짜 bitmap·0개로 대체하지 않는다.
 - [ ] **Step 4: GREEN·회귀** — Step 2 명령과 AppUiTest/NavigationUiTest. 앱 데이터 보존 결과를 기존 repository assertions로 검증하고 스냅샷만으로 대체하지 않는다.
 - [ ] **Step 5: 커밋** — 관련 기록/shared/test 파일만 stage·diff 검사; `git commit -m 'feat(design): 확인 완료 기록과 삭제 조작의 표현 정리'`.
 
 ### Task 6: 통합·접근성 수락과 문서 동기화
 
-**Files:** Modify I/LargeFontUiTest.kt, AppUiTest.kt, NavigationUiTest.kt; Create app/src/debug/java/io/github/kyujin0911/pounter/DesignPreviews.kt; Modify docs/verification.md, design_spec.md, design_system.md, compose_components.md; 필요하면 docs/design_system_board.html의 동일 문안/배치만 갱신.
+**Files:** Modify I/LargeFontUiTest.kt, AppUiTest.kt, NavigationUiTest.kt; Create app/src/debug/java/io/github/kyujin0911/pounter/preview/DesignPreviews.kt; Modify docs/verification.md, design_spec.md, design_system.md, compose_components.md, code_conventions.md; 필요하면 docs/design_system_board.html의 동일 문안/배치만 갱신.
 
 **Interfaces:** Consumes Task 1~5의 최종 UI와 기존 end-to-end 테스트. Produces 앱 적용 범위/현재 실행 결과/미검증 항목이 구분된 기록. 제품 API·DB 변경 없음.
 
@@ -210,6 +215,10 @@ rule.onNodeWithText("확정 저장").assertIsDisplayed()
 - [ ] **Step 5: 실제 화면 관찰** — 360dp 세로·가로·라이트/다크·fontScale100/200%에서 홈/사진 확인/보정300개/저장 실패/완료/사진 실패 관찰. 밝은/어두운 합성 사진에서 marker 가림·이중테두리/자동·수동 구별 평가. TalkBack 개수/선택 모드/오류/대체 입력/읽기 전용 조작 확인. S22+ 밝은 환경·실사진·OS 프로세스 종료·강제 종료 복원은 수행 가능할 때 별도 확인; 못 하면 이유/최소 다음 절차로 남긴다. 재생성을 프로세스 종료 검증으로 보고하지 않는다.
 - [ ] **Step 6: 재사용 가능한 UI Preview 작성** — DesignPreviews.kt에 라이트/다크·fontScale2·widthDp360 변형과 미분석/0/300/확인 완료/저장 실패 fixture를 만든다. AndroidTest의 DesignFixtures를 import하지 않고 debug 파일의 private fixture 함수로 구성한다. NoticeCard 슬롯/CountSummary/홈/보정/완료를 VM·Room·실제 파일·네트워크 없이 Preview한다. 전체 화면 Preview는 상태와 no-op callback만 받는다. `./gradlew assembleDebug`로 debug source 포함 컴파일을 확인하고 Preview 관찰과 실행 검증을 구분한다.
 - [ ] **Step 7: 문서 동기화·커밋** — 실제 토큰/컴포넌트/문안/threshold 변경만 명세·보드·컴포넌트 계약에 반영. 상태를 '앱 적용/확인한 범위'와 '현장·미실행'으로 구분한다. 관련 테스트·문서·실제 수정 UI와 Preview만 stage하고 diff 검사 후 `git commit -m 'test(design): 재사용 계약과 접근성·저장 회귀 검증 기록'`.
+
+## 패키지 적용 확인
+
+Task2의 이동 검증에 더해 Task6 최종 diff에서 feature 간 Screen/Action/UiState/ViewModel 직접 import, core UI의 CountTask 의존, 공유 UI의 VM/Repository/NavController 조회, 옛 경로 복제/alias를 검사한다. 단위·컴포넌트 테스트는 대상 패키지와 일치, 기존 통합 테스트는 루트 유지, Preview는 debug/preview, fixture는 androidTest/feature/shared. 재사용처가 한 기능뿐인 신규 요소는 core/shared에 승격하지 않는다. code_conventions.md의 규칙과 실제 배치를 동시에 기록한다.
 
 ## 계획 자체 검토
 

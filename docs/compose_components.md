@@ -2,7 +2,7 @@
 
 작성일: 2026-10-13. 상태: 공식 문서 조사·컴포넌트 계약 설계 / 코드 적용 대기.
 
-[디자인 시스템](design_system.md)의 UI 재사용 기준을 구체화한다. [구현 계획](superpowers/plans/2026-10-13-design-system-implementation.md)의 컴포넌트 API는 본 문서와 함께 따른다. 제품 범위·보존·이동은 PRD와 화면 명세가 우선한다. 아래 Kotlin은 구현할 계약이며 실행한 코드가 아니다.
+[디자인 시스템](design_system.md)의 UI 재사용 기준을 구체화한다. [구현 계획](superpowers/plans/2026-10-13-design-system-implementation.md)의 컴포넌트 API는 본 문서와 함께 따른다. 패키지 위치·의존 방향·승격 절차는 [코드 컨벤션](code_conventions.md#재사용-ui의-패키지-관리--2026-10-13-추가)을 따른다. 제품 범위·보존·이동은 PRD와 화면 명세가 우선한다. 아래 Kotlin은 구현할 계약이며 실행한 코드가 아니다. 서명 예제의 가시성은 생략했고 구현 시 코드 컨벤션의 internal/private 기준을 따른다.
 
 ## 1. 공식 근거와 적용 범위
 
@@ -19,7 +19,7 @@
 
 ## 2. 프로젝트 규칙
 
-1. **추출 이유를 먼저 기록한다.** 두 개 이상 실제 사용처에서 같은 의미·상태·배치가 반복되거나, 한 화면에서도 독립된 복잡한 조작을 소유할 때 추출한다. '미래에 쓸 수도 있음'만으로 공통 패키지에 넣지 않는다. 두 사용처 조건은 Pounter 판단이며 공식 숫자 기준이 아니다.
+1. **추출 이유를 먼저 기록한다.** 두 개 이상 실제 사용처에서 같은 의미·상태·배치가 반복되거나, 한 화면에서도 독립된 복잡한 조작을 소유할 때 추출한다. 업무와 무관한 디자인 UI의 core 승격은 코드 컨벤션 기준을 따른다. '미래에 쓸 수도 있음'만으로 공통 패키지에 넣지 않는다. 두 사용처 조건은 Pounter 판단이며 공식 숫자 기준이 아니다.
 2. **Material에서 시작한다.** 단순 Button/Text/Surface 래퍼를 모든 화면에 강제하지 않는다. 색·글꼴·형태는 테마로 공유한다. 외형만 비슷하고 행동이 다르면 별도 업무 컴포넌트를 유지한다.
 3. **시각 요소는 의미를 드러내는 PascalCase 이름을 사용한다.** CountSummary·CorrectionToolbar처럼 표시/역할 이름을 사용하고 RenderUi·HandleState 같은 모호한 이름을 피한다.
 4. **Modifier 기본값은 Modifier, 첫 선택 파라미터다.** UI를 내보내는 재사용 컴포넌트에 하나만 두고 가장 바깥 레이아웃 체인의 앞에서 한 번 적용한다. childModifier·textPadding 같은 외부 배치 옵션을 늘리지 않는다. 슬롯이 필요한 하위 요소는 해당 슬롯 호출자가 제어한다.
@@ -41,9 +41,9 @@
 | TaskHeader | 계수·완료 화면 | 기존 확장, modifier 제공, 제목/복귀 책임 유지 | feature/shared/TaskHeader.kt |
 | CountSummary | 계수·완료, 향후 같은 상세 표시 | 기존 확장. 도메인 CountTask를 읽는 업무 컴포넌트 유지 | feature/shared/CountSummary.kt |
 | StatusLabel | 계수·완료·홈 RecordCard | 새 값 중심 상태 라벨 | feature/shared/StatusLabel.kt |
-| NoticeCard | ProgressCard·ValidationNotice·MessageCard·RecoveryNotice | 공통 표면/본문/조작 슬롯. 업무별 문구·권한은 각각 유지 | 새 feature/shared/NoticeCard.kt |
+| NoticeCard | ProgressCard·ValidationNotice·MessageCard·RecoveryNotice | 공통 표면/본문/조작 슬롯. 업무별 문구·권한은 각각 유지 | 새 core/ui/components/NoticeCard.kt |
 | PhotoPanel | 계수·완료 | 기존 재사용, modifier/높이 추가. 내부 사진과 보기 도구 분리는 보류 | feature/shared/PhotoPanel.kt |
-| ConfirmDialog / DetailPhotoActions | 계수·완료 | 기존 재사용, modifier 전달/콜백·파괴 동작 조건 보존 | feature/shared의 기존 파일 |
+| ConfirmDialog / DetailPhotoActions | 계수·완료 | 기존 재사용, modifier 전달/콜백·파괴 동작 조건 보존 | ConfirmDialog: core/ui/components; DetailPhotoActions: feature/shared |
 | RecordCard / PhotoInputCard | 홈 기록 항목/새 입력 | 기능 내부 컴포넌트. 전역 공통 승격하지 않음 | feature/home |
 | CorrectionToolbar / ConfirmAction | 계수 화면 | 복잡한 조작/고정·스크롤 양쪽 배치 대응. 기능 내부 위치 | feature/count |
 
@@ -65,6 +65,8 @@ fun StatusLabel(status: TaskStatus, modifier: Modifier = Modifier)
 CountSummary(task, modifier)는 이 매핑을 사용하며 날짜·수동/자동 출처는 별도 본문이다. RecordCard도 taskStatus를 사용한다. 큰 도메인 UI 모델·변환 계층을 새로 만들지 않는다.
 
 ### NoticeCard: 한 컨테이너, 필요한 슬롯만
+
+NoticeCard와 일반 MessageCard/ProgressCard/ConfirmDialog는 core/ui/components에 두고 업무 문구를 고정한 ValidationNotice/RecoveryNotice는 feature/shared에 둔다. 기존 일반 컴포넌트는 복제하지 않고 이동한다.
 
 ```kotlin
 enum class NoticeTone { INFORMATION, ERROR }
@@ -121,7 +123,7 @@ fun DetailPhotoActions(
 )
 ```
 
-PhotoPanel의 modifier는 전체 Column, viewportHeight는 Canvas에만 적용한다. 대화상자의 modifier는 AlertDialog에 적용한다. DetailPhotoActions의 여러 UI 루트는 하나의 Column으로 묶어 modifier를 정확히 한 번 적용한다. 기존 ConfirmDialog/DetailPhotoActions의 trailing lambda 호출은 onConfirm/onDelete 명명 인자로 바꿔 마지막 Modifier 인자 추가와 충돌하지 않게 한다. 새 앱 내부 API여서 오래된 중복 overload를 남기지 않고 호출부·테스트를 함께 갱신한다.
+PhotoPanel의 modifier는 전체 Column, viewportHeight는 Canvas에만 적용한다. 대화상자의 modifier는 AlertDialog에 적용한다. DetailPhotoActions의 여러 UI 루트는 하나의 Column으로 묶어 modifier를 정확히 한 번 적용한다. 기존 ConfirmDialog/DetailPhotoActions의 trailing lambda 호출은 onConfirm/onDelete 명명 인자로 바꿔 마지막 Modifier 인자 추가와 충돌하지 않게 한다. 앱 내부 계약은 코드 컨벤션에 따라 internal을 기본으로 하며 오래된 중복 overload를 남기지 않고 호출부·테스트를 함께 갱신한다.
 
 PhotoInputCard/RecordCard는 계획의 값·이벤트·modifier 계약 유지. CorrectionToolbar/ConfirmAction은 feature/count에 둔다. PhotoLayout은 계수·완료 양쪽이 사진 높이 계산을 사용하므로 feature/shared에 둔다. 같은 기능에서만 쓰는 UI를 shared로 승격하지 않는다. PhotoPanel은 높이를 받으므로 계수·완료 화면이 필요한 배치를 계산해 전달한다.
 
