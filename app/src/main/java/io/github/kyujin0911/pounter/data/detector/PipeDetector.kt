@@ -7,4 +7,9 @@ const val DETECTOR_VALIDATED = false
 
 interface PipeDetector {
     suspend fun detect(task: CountTask): Detection
+
+    suspend fun detect(task: CountTask, onStage: (AnalysisStage) -> Unit): Detection {
+        onStage(AnalysisStage.PROCESSING)
+        return detect(task)
+    }
 }

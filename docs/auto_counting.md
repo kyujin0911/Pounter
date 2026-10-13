@@ -1,8 +1,8 @@
 # 비AI 파이프 자동 계수 설계
 
-갱신일: 2026-10-12. 상태: 접근 사용자 채택 / 아래 세부 조합은 기술 가정 / 구현·현장 성능 미검증.
+갱신일: 2026-10-13. 상태: 접근 사용자 채택 / 상세 설계 문서 확정 / 구현·현장 성능 미검증.
 
-사용자·촬영 조건·범위·수치 인수 기준은 [PRD](../PRD.md)를 따른다. 최신 요청은 Navigation 구현이며 자동 검출기 구현·검출 실험은 허용하지 않는다. 현재 코드와 과거 실험은 [검증 이력](verification.md)의 스냅샷이다.
+사용자·촬영 조건·범위·수치 인수 기준은 [PRD](../PRD.md)를 따른다. 2026-10-13 요청으로 [자동 계수 상세 설계](superpowers/specs/2026-10-13-auto-counting-design.md)를 문서로 확정한다. 이번 범위는 문서 작성·검토·새 브랜치의 로컬 커밋이며 자동 검출기 구현·검출 실험은 포함하지 않는다. 이전 Navigation 구현과 과거 실험은 [검증 이력](verification.md)의 시점별 기록이다. 아래 접근 설명은 유지하고 코드 계약·상태·호환성의 상세화는 확정 상세 설계를 참조한다.
 
 ## 선택과 대안 비교
 
@@ -88,3 +88,37 @@ OpenCV 4.5 이상은 Apache 2.0 라이선스다. 라이선스 조건을 지키�
 - [밝기/CLAHE](https://docs.opencv.org/4.13.0/d5/daf/tutorial_py_histogram_equalization.html)
 
 공식 기능의 존재는 파이프 검출 성능의 근거가 아니다.
+
+## 평가 구현과 외부 정답 규약 — 2026-10-13
+
+사용자가 상세 설계와 계획의 직접 실행을 승인했다. `feat/auto-counting`은 계획 커밋 `b1cd809`에서 시작하며 미병합 Koin `478cb50`과 해당 문서 이력에 의존한다. 현재 로컬 main은 `04cd258`, 공통 조상은 `64f4700`이다. 원격 최신 상태는 조회하지 않았다.
+
+복합 검출기는 androidTest에만 있다. 일반 앱의 `ValidationRequiredDetector`, `DETECTOR_VALIDATED=false`, OpenCV 테스트 의존성은 유지한다. 메타데이터·좌표 복원·분석 입력·저장 대기 계약은 main 코드에 구현했다. Room v1과 기존 JSON/복원 key를 유지한다.
+
+평가 처리 버전 `synthetic-v1`은 합성 기하학 검사 전용이다. 분석 긴 변 1600px, 픽셀 예산 4,000,000, 후보 상한 10,000, median 3, Canny 40/90, 국소 평균 block 31/offset 4, 짧은 반축 최소 7px·긴 반축 최대 80px, 축비 2.5, 경계 지지 .65, fit error .15, 대비 최소 0, 통합 정책 .3/.5/.85를 사용했다. 대비 최소 0은 합성 시험의 선택이며 현장 단면 검증값이 아니다. 고정 현장 설정은 아직 없다. API36 ARM 에뮬레이터의 Gaussian adaptiveThreshold 내부 float 변환에서 SIGILL이 발생해 같은 양극성 국소 평균 분리로 변경했다. 실제 S22+ 성능·메모리는 미검증이다.
+
+### 입력과 실행
+
+`DetectionEvaluationTest#evaluateTuningSet`와 `DetectionAcceptanceTest#evaluateIndependentSet`에 instrumentation 인자 `evaluationManifest`, `evaluationConfig`를 전달한다. 둘 다 앱 프로세스가 읽을 수 있는 **기기 로컬** 파일 경로다. 사진 경로는 manifest 폴더 기준 상대 경로이며 폴더 밖으로 이탈하면 거부한다. 실제 전송/권한은 현장 실행 환경에서 확인한다. 사진·정답·설정 원본·오버레이·평가 원본 결과는 Git에 넣지 않는다. 인자가 없으면 테스트는 현장 검증 대기를 이유로 skip한다.
+
+설정 JSON에는 `detectorVersion`, `frozen`과 `DetectionConfig`의 모든 수치 필드 및 `mergePolicy`의 세 필드를 명시한다. 기본 수치를 자동 보충하지 않는다. 파일 바이트의 SHA-256을 manifest의 `configSha256`과 비교한다. 고정 후 파일의 공백 변경도 해시를 바꾸므로 고정 원본 파일을 보존한다. independent에서는 frozen=true와 삼성 SM-S906 계열 / SDK36을 요구한다. 대표 기기 여부는 현장에서도 사용자 제공 모델·OS와 함께 재확인한다.
+
+manifest JSON 규약:
+
+- 최상위: `schemaVersion: 1`, `groundTruthFrozen: true`, `configSha256`, `samples`.
+- 각 sample: 비식별 `sampleId`, `sessionId`, `bundleId`, `split`(reference/tuning/independent), `supportGroup` 문자열 배열, `photo` 상대 경로.
+- `region: [left, top, right, bottom]`: 방향 보정된 전체 사진의 정규화 좌표. 전체 한 묶음은 [0,0,1,1]. 자르기는 선택이며 사진 배경으로 강제하지 않는다.
+- `expected: [{id, x, y}]`: 같은 사진의 정규화 단면 중심. 사진 너비/높이로 각각 나눈 좌표. ID는 사진 안에서 유일. 노란 단면·금속색 단면 모두 포함하고, 돌출/후퇴한 작은 단면을 지원 밖으로 일괄 제외하지 않는다.
+- `normalizedTolerance`: 결과 보기 전에 고정한 x/y 정규화 유클리드 거리. 좌표 방향은 가져오기 EXIF 적용 후를 기준으로 정답을 작성한다. 가로/세로 픽셀 거리와 같은 수치로 취급하지 않는다.
+- `excluded: [{id, x, y, reason}]`: 주변 묶음·판단 불가능한 가림·잘린 대상 등의 위치와 사유를 기록. 제외 기록은 검출 결과를 임의 삭제하는 필터가 아니다. 선택 영역 안의 비대상 검출은 오검출로 남는다.
+- `zeroFalsePositiveAllowance`: 실제 0개 사진의 허용 오검출 수, 평가 전 고정. N>0에서는 `max(1, floor(N*0.05))`를 사용한다. N=10/20/300이면 1/1/15.
+
+촬영 세션 또는 같은 묶음을 reference/tuning과 independent 양쪽에 배치하면 거부한다. 참고 사진 두 장은 reference/tuning으로만 관리한다. 새로운 독립 촬영 자료의 독립성은 담당자가 확인하고 manifest에 기록한다. 단순 ID 변경은 독립성 근거가 아니다.
+
+### 출력과 판정 경계
+
+일대일 대응은 거리·ID 순서의 augmenting path로 최대 대응 수를 구한다. 합계가 같아도 누락/오검출을 별도로 센다. 삭제 후 추가는 2회다. 사진마다 expected/matched/missing/falsePositive/보정량과 반복 결과를 기록한다. 처리 실패는 0개로 바꾸지 않으며 failureReason으로 기록한다. 형태/영역 후보 수는 중복 통합 전의 기여량이며 정확도가 아니다.
+
+첫 검출 함수 호출·반복 호출 시간(호출 잠금 대기 포함), 해당 호출의 초기화 시간, 원본/가져온/분석 입력 치수, native heap 전후 스냅샷을 출력한다. heap 전후값은 peak 메모리가 아니다. tuning에서는 기존 Hough 위치 대응과 픽셀 예산 안의 방향 보정 원본 전체 해상도 비교를 제공한다. 원본이 예산을 넘으면 비교 대기 사유를 남기며 몰래 축소하지 않는다. 고정 임계값을 원본 전체 해상도에도 사용하므로 단면 픽셀 크기 범위 차이까지 함께 해석해야 한다. 사진별 임계값 조정은 하지 않는다.
+
+이 자동 평가만으로 현장 인수를 완료하지 않는다. 저장/화면 반영을 포함한 표시 생성 5초, 대표 기기의 메모리 peak·취소/재시도, 사용자 보정 후 정답 일치, 촬영부터 재촬영까지 전체 검수 시간·최종 오류·포기, 첫 사용 후 합의한 개선 폭/반복 횟수, Activity 재생성/OS 프로세스 종료/force-stop의 별도 검증이 남아 있다. 독립 자료를 보고 튜닝하면 새 처리 버전과 새 독립 자료가 필요하다. 이 근거가 없으므로 Task 7은 진행하지 않는다.

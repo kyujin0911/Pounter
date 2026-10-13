@@ -5,6 +5,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import io.github.kyujin0911.pounter.core.model.CountTask
 import io.github.kyujin0911.pounter.core.model.Marker
+import io.github.kyujin0911.pounter.data.detector.AnalysisStage
+import io.github.kyujin0911.pounter.data.detector.DetectionFailure
+import io.github.kyujin0911.pounter.data.detector.DetectionFailureReason
 import io.github.kyujin0911.pounter.data.repository.CountRepository
 import io.github.kyujin0911.pounter.feature.shared.PhotoImportHandler
 import java.util.UUID
@@ -100,7 +103,11 @@ class CountViewModel(
                 analysisJob?.cancel()
                 analysisJob = null
                 _uiState.update {
-                    it.copy(operation = Operation.NONE, message = "분석을 취소했습니다. 사진과 이전 표시를 유지합니다.")
+                    it.copy(
+                        operation = Operation.NONE,
+                        analysisWaiting = false,
+                        message = "분석을 취소했습니다. 사진과 이전 표시를 유지합니다.",
+                    )
                 }
             }
             return
@@ -161,7 +168,7 @@ class CountViewModel(
         }
     }
 
-    private fun persist(editedTask: CountTask) {
+    private fun persist(editedTask: CountTask, successMessage: String? = null) {
         taskPendingSave = editedTask
         savedStateHandle["pendingSave"] = Json.encodeToString(editedTask)
         _uiState.update { it.copy(unsavedChanges = true) }
@@ -169,7 +176,9 @@ class CountViewModel(
             val savedTask = countRepository.save(editedTask)
             taskPendingSave = null
             savedStateHandle["pendingSave"] = null
-            _uiState.update { it.copy(task = savedTask, message = null, unsavedChanges = false) }
+            _uiState.update {
+                it.copy(task = savedTask, message = successMessage, unsavedChanges = false)
+            }
         }
     }
 
@@ -177,51 +186,86 @@ class CountViewModel(
         val task = _uiState.value.task ?: return
         if (task.confirmed) return
         val resultGeneration = ++analysisGeneration
-        _uiState.update { it.copy(operation = Operation.ANALYZING, message = null) }
+        _uiState.update {
+            it.copy(operation = Operation.ANALYZING, analysisWaiting = false, message = null)
+        }
         analysisJob =
             viewModelScope.launch {
                 try {
-                    val detection = countRepository.detect(task)
+                    val detection =
+                        countRepository.detect(task) { stage ->
+                            viewModelScope.launch {
+                                if (
+                                    resultGeneration == analysisGeneration &&
+                                        _uiState.value.operation == Operation.ANALYZING &&
+                                        sameAnalysisSnapshot(task, _uiState.value.task)
+                                )
+                                    _uiState.update {
+                                        it.copy(analysisWaiting = stage == AnalysisStage.WAITING)
+                                    }
+                            }
+                        }
                     ensureActive()
                     if (
-                        resultGeneration != analysisGeneration || _uiState.value.task?.id != task.id
+                        resultGeneration != analysisGeneration ||
+                            !sameAnalysisSnapshot(task, _uiState.value.task)
                     )
                         return@launch
-                    // Once commit starts, cancellation is no longer offered; preserve durable
-                    // result.
-                    _uiState.update { it.copy(operation = Operation.SAVING) }
-                    val savedTask =
-                        countRepository.save(
-                            task.copy(
-                                markers = detection.markers,
-                                automatic = detection.markers,
-                                undo = null,
-                                analyzed = true,
-                                analysisMillis = detection.millis,
-                            )
+                    val editedTask =
+                        task.copy(
+                            markers = detection.markers,
+                            automatic = detection.markers,
+                            undo = null,
+                            analyzed = true,
+                            analysisMillis = detection.millis,
+                            analysisMetadata = detection.analysisMetadata,
                         )
-                    _uiState.update {
-                        it.copy(
-                            task = savedTask,
-                            message =
-                                if (savedTask.count == 0)
-                                    "검출된 파이프가 없습니다. 촬영 조건과 영역을 확인하거나 수동으로 표시해주세요."
-                                else null,
-                        )
-                    }
+                    _uiState.update { it.copy(task = editedTask, analysisWaiting = false) }
+                    persist(
+                        editedTask,
+                        if (editedTask.count == 0) "검출된 파이프가 없습니다. 촬영 조건과 영역을 확인하거나 수동으로 표시해주세요."
+                        else null,
+                    )
                 } catch (cancellation: CancellationException) {
                     throw cancellation
                 } catch (failure: Exception) {
                     if (resultGeneration == analysisGeneration)
-                        _uiState.update {
-                            it.copy(message = failure.message ?: "분석에 실패했습니다. 재시도해주세요.")
-                        }
+                        _uiState.update { it.copy(message = analysisFailureMessage(failure)) }
                 } finally {
                     if (resultGeneration == analysisGeneration)
-                        _uiState.update { it.copy(operation = Operation.NONE) }
+                        _uiState.update {
+                            it.copy(
+                                operation =
+                                    if (it.operation == Operation.ANALYZING) Operation.NONE
+                                    else it.operation,
+                                analysisWaiting = false,
+                            )
+                        }
                 }
             }
     }
+
+    private fun sameAnalysisSnapshot(start: CountTask, current: CountTask?): Boolean =
+        current != null &&
+            start.id == current.id &&
+            start.revision == current.revision &&
+            start.photoName == current.photoName &&
+            start.region == current.region &&
+            start.width == current.width &&
+            start.height == current.height
+
+    private fun analysisFailureMessage(failure: Exception): String =
+        if (failure is DetectionFailure)
+            when (failure.reason) {
+                DetectionFailureReason.PHOTO_READ -> "사진을 읽을 수 없습니다. 다시 선택해주세요."
+                DetectionFailureReason.INITIALIZATION -> "검출 라이브러리를 시작하지 못했습니다. 다시 시도해주세요."
+                DetectionFailureReason.INVALID_INPUT -> "분석할 사진 크기나 영역을 확인해주세요. 사진을 다시 선택할 수 있습니다."
+                DetectionFailureReason.PROCESSING -> "사진 분석에 실패했습니다. 재시도하거나 사진을 교체해주세요."
+                DetectionFailureReason.CANDIDATE_SATURATION ->
+                    "분석 후보가 처리 상한에 도달했습니다. 영역과 촬영 조건을 확인해주세요."
+                DetectionFailureReason.COUNT_LIMIT -> "300개를 초과하는 단면 후보입니다. 영역과 촬영 조건을 확인해주세요."
+            }
+        else failure.message ?: "분석에 실패했습니다. 재시도해주세요."
 
     private fun runOperation(operation: Operation, block: suspend () -> Unit) {
         _uiState.update { it.copy(operation = operation) }

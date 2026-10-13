@@ -164,6 +164,27 @@ DI 초기화 테스트를 연결 전 실행하여 `KoinApplication has not been 
 - 실기기 갤럭시 S22+·실제 카메라·회전: 대표 기기로 같은 수동 흐름·회전 확인. 이번 대상은 에뮬레이터이며 Activity 재생성만 실행했다.
 - 현장 자동 계수 성능·Hough 실험: 이번 요청의 제외 범위. 검증 대기 검출기를 유지했다.
 
+## 자동 계수 평가 구현 검증 — 2026-10-13
+
+`b1cd809` 승인 계획에서 `feat/auto-counting`으로 직접 실행했다. Task 1~5 구현, Task 6 평가 코드/규약 준비. 기존 사용자 변경/원본 사진은 사용하거나 커밋하지 않았다. 일반 앱 detector와 OpenCV 의존성의 제공 범위는 기존 검증 대기를 유지한다.
+
+- 포맷·debug 앱/test APK 빌드·JVM·Lint: `spotlessCheck assembleDebug assembleDebugAndroidTest testDebugUnitTest lintDebug` 통과. JVM 총 52개, 실패 0.
+- Small_Phone API36: AppUiTest, LargeFontUiTest, NavigationUiTest, DiInstrumentedTest, DetectionFlowUiTest, AnalysisMetadataInstrumentedTest, AnalysisPhotoInstrumentedTest, CompositeDetectorInstrumentedTest, EvaluationProtocolInstrumentedTest 총 32개 통과. DetectionEvaluationTest/DetectionAcceptanceTest 각 1개는 외부 manifest/config 미제공으로 skip. skip은 현장 합격이 아니다.
+- RepositoryInstrumentedTest: importEditReloadConfirmAndDelete, staleRevisionCannotOverwriteSavedChanges, interruptedDeletionIsCompletedOnStartup, invalidInputDoesNotReplaceExistingRecord, cancellationAfterInsertKeepsReferencedPhoto, legacyVersionOneDatabaseAndPayloadReopenWithoutMigration 6개 통과. 기존 Hough 프로토타입 메서드는 이 회귀 목록에서 실행하지 않았다. Task 6 실제 tuning 입력도 없으므로 현장 Hough 기준선 평가 미실행.
+- Task 1 메타데이터/기존 v1 SQL, Task 3 EXIF·입력·자원(4개), Task 4 합성 복합 검출·상한·직렬 취소(5개)는 API36/API36.1 양쪽에서 개별 통과.
+- 초기 새 타입 테스트는 미구현 API로 컴파일 실패했고, Task 5 저장 실패·snapshot 회귀 2개는 기존 구현의 assertion 실패를 확인한 뒤 통과했다. 환경/파서 오류는 기능 실패 증거와 구분한다. 초기 연쇄 통합 fixture는 포함 관계가 없던 동률 원 3개를 실제 포함되는 축/점수 차이의 연쇄로 수정했으며 기대 개수/포함 기준은 유지했다.
+- Task 4 첫 fixture는 앱 startup orphan 정리와 충돌했고, 테스트 사진을 별도 cache 저장소로 분리했다. OpenCV Gaussian 분리의 float convertTo에서 SIGILL을 확인해 양극성 국소 평균 분리로 바꾼 뒤 동일 테스트를 통과했다. 실제 기기 최적화·속도 증거가 아니다.
+- API36.1 UI 13개는 기존 Espresso의 InputManager.getInstance reflection 오류로 실패. 테스트 의존성 전체 업그레이드는 하지 않았고, API36에서 UI 13개를 다시 통과했다. API36.1 UI 호환성은 미검증/실패 상태로 남긴다.
+
+실사진의 정답 위치/개수·독립성·현장 고정 config가 없어 튜닝/독립 인수는 실행하지 않았다. S22+ 연결/성능, 5초 사용자 관찰 지연, peak 메모리, 보정 후 정답, 전체 검수 효용, OS 프로세스 종료와 force-stop은 검증 대기. 기존 Navigation의 StateRestorationTester/entry 동작과 이 현장 검증을 동일시하지 않는다. Task 7은 진행하지 않는다.
+
+### 최종 리뷰 수정 후 재검증
+
+독립 전체 리뷰에서 Important 1건(분석 Bitmap의 IO 반환 전달 직전 취소 시 미해제)을 확인했다. 동일 반환 경계를 보류한 회귀 테스트의 해제 assertion 실패를 확인하고, 반환 컨텍스트 바깥에서 미전달 자원을 닫도록 수정했다. 재현 테스트와 정상 사진/복합 검출 10개 통과. Critical/Minor 지적 없음.
+
+수정된 코드에서 포맷·앱/test APK 빌드·Lint 및 JVM 52개 통과. API36의 앞서 명시한 모든 클래스와 Repository 허용 6메서드를 합친 최종 회귀는 **39개 통과, 외부 현장 평가 2개 skip, 실패 0**이다. API36.1 UI는 기존 호환성 실패 상태로 유지한다. 실제 현장 인수·실기기·프로세스 종료를 이 결과로 대신하지 않는다.
+
+집계는 결과 XML의 testcase/skip/failure를 기준으로 했다. 최종 testcase 41개 중 skip 2개이므로 통과는 39개다. Gradle 진행 로그의 Finished 43 표시는 통과 개수 근거로 쓰지 않는다.
 
 ## 2026-10-13 디자인 시스템 구현
 
@@ -205,3 +226,16 @@ API36.1의 기존 Espresso는 `InputManager.getInstance` reflection 오류로 UI
 새 컨텍스트의 Android/Compose 리뷰어가 `9e03aba..d7bee10` 전체 변경을 읽었다. Critical/Minor 없음, Important 1건: 확대·이동한 사진 영역 축소 시 이전 이동 한계가 남아 사진이 영역 밖으로 밀리는 문제. `zoomedPannedPhotoStaysTouchableWhenViewportShrinks`에서 6배 확대·모서리 이동·340→180dp 축소 후 중심 터치 callback 0회 실패를 실제 기기 테스트로 관찰했다. PhotoPanel의 onSizeChanged에서 기존 PhotoGeometry.clampPan을 새 크기로 적용한 후 callback 1회, 정규화 좌표 일치, 확대 6배 유지가 통과했다. 사진 관련 4개 테스트 통과 후 `./gradlew assembleDebug testDebugUnitTest lintDebug spotlessCheck connectedDebugAndroidTest` 전체 실행도 BUILD SUCCESSFUL: JVM30개·기기41개 통과, 실패/오류/건너뜀 0. 이것이 리뷰 수정 후 최종 결과다.
 
 리뷰에서 판정을 보류한 기존 번호 밀도와 실제 TalkBack/현장/프로세스 종료 항목은 위 제한을 유지한다. 번호 표시 방식은 이번에 바꾸지 않으며 다음 수락 조건이다. 영역 축소 보정은 범위 안의 기존 이동량을 유지하고 넘은 값만 제한하는 최소 수정이다. 정규화 중심을 항상 고정하는 새 변환은 추가하지 않았다. 크기 축소로 이동 한계가 줄어드는 만큼 중심은 이동할 수 있으나 확대를 초기화하지 않고 사진과 터치 좌표를 일치시킨다.
+
+
+## 자동 계수와 디자인 변경의 충돌 해결 검증 — 2026-10-13
+
+`feat/auto-counting`의 `8ebf52a`에서 로컬 main `04cd258`을 병합하던 중 CountWorkScreen.kt와 이 문서의 충돌을 해결했다. 기존 자동 계수/디자인 시스템 검증 절의 내용·기준 SHA·실행 범위·미검증은 각각 그대로 보존했다. 과거 각 브랜치의 테스트 수를 이번 통합 결과로 합산하지 않는다.
+
+- CountWorkScreen: main의 반응형 화면 배치, 디자인 토큰, core 안내 컴포넌트, RecoveryNotice, CorrectionToolbar와 ConfirmAction을 유지했다. 자동 계수 브랜치의 analysisWaiting 안내(이전 분석 정리), 재분석 시 자동 표시/수동 보정 교체 확인을 함께 보존했다. 취소·저장/미저장 잠금·0개 명시적 확정 경로는 그대로다.
+- 충돌 해결 전 `testDebugUnitTest`는 충돌 마커와 문법 오류로 compileDebugKotlin 단계에서 실패했다. 이는 동작 assertion 실패와 구분한다.
+- 해결 후 JDK17에서 `spotlessCheck assembleDebug testDebugUnitTest lintDebug` BUILD SUCCESSFUL. 결과 XML 기준 JVM **54개, 실패/오류 0**.
+- Small_Phone API36에서 명시한 관련 UI 회귀 **33개 통과, 실패/skip 0**. 실행 클래스: DetectionFlowUiTest, feature.count.CountDesignUiTest, feature.shared.DesignStatusUiTest, core.ui.components.ComponentContractUiTest, feature.shared.PhotoPanelDesignUiTest, NavigationUiTest, AppUiTest, LargeFontUiTest(패키지 접두사 io.github.kyujin0911.pounter). 분석 대기/취소·저장 재시도·새 UI 보정/확정·Navigation·200% 글꼴·사진 영역 축소를 검증했다. Hough/복합 검출 실험과 현장 평가 클래스는 이 실행 목록에서 제외했다.
+- 읽기 전용 독립 검토: 두 파일의 해결 내용에 지적 없음. 기존 다른 스테이징 변경을 수정하지 않았다. 코드 변경 후 graphify AST 갱신, 충돌 마커와 diff 공백 검사도 확인했다.
+
+현장 정답·독립 자료·S22+ 검출/표시 시간·메모리·검수 효용·실제 OS 프로세스 종료/force-stop·API36.1 Espresso 호환성의 기존 미검증 상태는 유지한다. 이 충돌 해결은 Task 7의 일반 앱 검출기 연결이나 현장 인수 완료가 아니다.

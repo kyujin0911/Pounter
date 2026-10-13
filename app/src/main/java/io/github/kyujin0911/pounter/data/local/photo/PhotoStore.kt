@@ -6,11 +6,15 @@ import android.graphics.BitmapFactory
 import android.graphics.Matrix
 import android.net.Uri
 import androidx.exifinterface.media.ExifInterface
+import io.github.kyujin0911.pounter.data.detector.DetectionFailure
+import io.github.kyujin0911.pounter.data.detector.DetectionFailureReason
 import java.io.File
 import java.io.IOException
 import java.util.UUID
 import kotlin.math.max
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 
 class PhotoStore(private val context: Context) {
@@ -111,6 +115,51 @@ class PhotoStore(private val context: Context) {
                     inPreferredConfig = Bitmap.Config.ARGB_8888
                 },
             ) ?: throw IOException("저장된 사진을 읽을 수 없습니다.")
+        }
+
+    suspend fun analysisPhoto(name: String, maxSidePx: Int, maxDecodedPixels: Long): AnalysisPhoto =
+        readOwnedAnalysisPhoto {
+            if (maxSidePx <= 0 || maxDecodedPixels <= 0)
+                throw DetectionFailure(DetectionFailureReason.INVALID_INPUT)
+            try {
+                val path = file(name).path
+                val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                BitmapFactory.decodeFile(path, bounds)
+                if (bounds.outWidth <= 0 || bounds.outHeight <= 0)
+                    throw DetectionFailure(DetectionFailureReason.PHOTO_READ)
+                var sampleSize = 1
+                while (
+                    max(bounds.outWidth, bounds.outHeight) / sampleSize > maxSidePx
+                ) sampleSize *= 2
+                val decodedWidth = (bounds.outWidth.toLong() + sampleSize - 1) / sampleSize
+                val decodedHeight = (bounds.outHeight.toLong() + sampleSize - 1) / sampleSize
+                if (decodedWidth * decodedHeight > maxDecodedPixels)
+                    throw DetectionFailure(DetectionFailureReason.INVALID_INPUT)
+                ensureActive()
+                val bitmap =
+                    BitmapFactory.decodeFile(
+                        path,
+                        BitmapFactory.Options().apply {
+                            inSampleSize = sampleSize
+                            inPreferredConfig = Bitmap.Config.ARGB_8888
+                        },
+                    ) ?: throw DetectionFailure(DetectionFailureReason.PHOTO_READ)
+                try {
+                    ensureActive()
+                    if (bitmap.width.toLong() * bitmap.height > maxDecodedPixels)
+                        throw DetectionFailure(DetectionFailureReason.INVALID_INPUT)
+                    AnalysisPhoto(bitmap, bounds.outWidth, bounds.outHeight)
+                } catch (failure: Throwable) {
+                    bitmap.recycle()
+                    throw failure
+                }
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (failure: DetectionFailure) {
+                throw failure
+            } catch (failure: Exception) {
+                throw DetectionFailure(DetectionFailureReason.PHOTO_READ, failure)
+            }
         }
 
     fun removeOrphans(referenced: Set<String>) {
