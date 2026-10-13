@@ -62,10 +62,13 @@ fun RecordScreen(
                 item { ProgressCard(if (state.isDeleting) "변경 사항 저장 중" else "사진과 기록을 불러오는 중") }
             if (message != null)
                 item {
-                    MessageCard(message) {
-                        dispatch(RecordAction.ClearMessage)
-                        onClearInputError()
-                    }
+                    MessageCard(
+                        message,
+                        onDismiss = {
+                            dispatch(RecordAction.ClearMessage)
+                            onClearInputError()
+                        },
+                    )
                 }
             if (task == null) {
                 if (!isBusy)

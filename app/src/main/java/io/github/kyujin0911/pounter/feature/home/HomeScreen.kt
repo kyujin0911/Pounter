@@ -70,10 +70,13 @@ fun HomeScreen(
             if (isBusy) item { ProgressCard("사진과 기록을 불러오는 중") }
             if (message != null)
                 item {
-                    MessageCard(message) {
-                        dispatch(HomeAction.ClearMessage)
-                        onClearInputError()
-                    }
+                    MessageCard(
+                        message,
+                        onDismiss = {
+                            dispatch(HomeAction.ClearMessage)
+                            onClearInputError()
+                        },
+                    )
                 }
 
             item {

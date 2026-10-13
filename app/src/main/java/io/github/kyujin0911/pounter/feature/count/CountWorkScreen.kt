@@ -109,10 +109,13 @@ fun CountWorkScreen(
                 }
             if (message != null)
                 item {
-                    MessageCard(message) {
-                        dispatch(CountAction.ClearMessage)
-                        onClearInputError()
-                    }
+                    MessageCard(
+                        message,
+                        onDismiss = {
+                            dispatch(CountAction.ClearMessage)
+                            onClearInputError()
+                        },
+                    )
                 }
             if (task == null) {
                 if (!isBusy)
