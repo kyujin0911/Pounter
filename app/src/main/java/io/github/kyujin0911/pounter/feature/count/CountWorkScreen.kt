@@ -235,7 +235,7 @@ fun CountWorkScreen(
                                         },
                                         enabled = canEdit,
                                     ) {
-                                        Text("자동 계수 상태")
+                                        Text(if (task.analyzed) "재분석" else "자동 분석")
                                     }
                                     if (!task.analyzed)
                                         Button(
@@ -337,7 +337,7 @@ fun CountWorkScreen(
                 )
             "reanalyze" ->
                 ConfirmDialog(
-                    "자동 계수 상태",
+                    "자동 재분석",
                     "재분석하면 현재 자동 표시와 수동 보정이 새 결과로 교체됩니다. 계속할까요?",
                     "재분석",
                     { dialog = null },

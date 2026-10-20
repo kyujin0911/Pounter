@@ -8,7 +8,7 @@ import io.github.kyujin0911.pounter.core.ui.components.NoticeTone
 
 @Composable
 internal fun ValidationNotice(modifier: Modifier = Modifier) {
-    NoticeCard(NoticeTone.INFORMATION, modifier, title = "자동 계수 · 검증 대기") {
-        Text("추가 정면 사진으로 정확도를 검증한 뒤 제공합니다. 현재는 사진에 수동으로 표시하고 기록을 남길 수 있습니다.")
+    NoticeCard(NoticeTone.INFORMATION, modifier, title = "자동 계수 · 검토 필요") {
+        Text("자동 표시는 누락되거나 중복될 수 있습니다. 사진과 대조해 추가·삭제한 뒤 개수를 확인하고 저장해주세요.")
     }
 }

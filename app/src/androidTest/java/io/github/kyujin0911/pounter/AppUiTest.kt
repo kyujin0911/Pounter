@@ -13,6 +13,7 @@ import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isDialog
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -84,7 +85,7 @@ class AppUiTest {
 
     @Test
     fun manualCorrectionConfirmAndReopen() {
-        rule.onNodeWithText("자동 계수 · 검증 대기").assertIsDisplayed()
+        rule.onNodeWithText("자동 계수 · 검토 필요").assertIsDisplayed()
         screenshot("home")
         val task = importFixture()
         rule.waitUntil(5000) {
@@ -147,5 +148,80 @@ class AppUiTest {
         rule.onNodeWithText("이 기록 삭제").performClick()
         rule.onNodeWithText("삭제", useUnmergedTree = true).performClick()
         rule.waitUntil(5000) { runBlocking { countRepository.get(task.id) == null } }
+    }
+
+    @Test
+    fun automaticCorrectionConfirmAndReopen() {
+        val root =
+            File(
+                requireNotNull(
+                    androidx.test.platform.app.InstrumentationRegistry.getArguments()
+                        .getString("radialEvaluationRoot")
+                )
+            )
+        val rows = org.json.JSONArray(File(root, "rows.json").readText())
+        val source = rows.getJSONObject(2).getJSONObject("sample").getString("photo")
+        val task = runBlocking {
+            countRepository.import(Uri.fromFile(File(root, source))).also { ids += it.id }
+        }
+        rule.waitUntil(5000) {
+            rule.onAllNodesWithTag("record-${task.id}").fetchSemanticsNodes().isNotEmpty()
+        }
+        rule.onNodeWithTag("content").performScrollToNode(hasTestTag("record-${task.id}"))
+        rule.onNodeWithTag("record-${task.id}").performClick()
+        scrollTo("자동 분석")
+        rule.onNodeWithText("자동 분석").performClick()
+        rule.waitUntil(15000) { runBlocking { countRepository.get(task.id)?.analyzed == true } }
+        val analyzed = runBlocking { countRepository.get(task.id)!! }
+        org.junit.Assert.assertEquals(58, analyzed.count)
+        org.junit.Assert.assertEquals(analyzed.markers, analyzed.automatic)
+        org.junit.Assert.assertFalse(analyzed.confirmed)
+        scrollTo("확대")
+        rule.onNodeWithText("확대").performClick()
+        scrollTo("현재 개수")
+        screenshot("automatic-review")
+        scrollTo("추가")
+        rule.onNodeWithText("추가", substring = false).performClick()
+        scrollTo("이 위치에 추가")
+        rule.onNodeWithText("이 위치에 추가").performClick()
+        rule.waitUntil(5000) { runBlocking { countRepository.get(task.id)?.count == 59 } }
+        scrollTo("되돌리기")
+        rule.onNodeWithText("되돌리기").performClick()
+        rule.waitUntil(5000) { runBlocking { countRepository.get(task.id)?.count == 58 } }
+        scrollTo("표시 목록 58개")
+        rule.onNodeWithText("표시 목록 58개").performClick()
+        rule
+            .onAllNodes(hasText("삭제") and hasAnyAncestor(isDialog()), useUnmergedTree = true)[0]
+            .performClick()
+        rule.waitUntil(5000) { runBlocking { countRepository.get(task.id)?.count == 57 } }
+        scrollTo("되돌리기")
+        rule.onNodeWithText("되돌리기").performClick()
+        rule.waitUntil(5000) { runBlocking { countRepository.get(task.id)?.count == 58 } }
+        // Reject reanalysis reset, then perform it and verify automatic/reference distinction
+        // survives.
+        scrollTo("재분석")
+        rule.onNodeWithText("재분석").performClick()
+        rule.onNodeWithText("취소").performClick()
+        org.junit.Assert.assertEquals(58, runBlocking { countRepository.get(task.id)!!.count })
+        rule.activityRule.scenario.recreate()
+        scrollTo("현재 개수")
+        screenshot("automatic-recreated")
+        scrollTo("58개 확인하고 확정")
+        rule.onNodeWithText("58개 확인하고 확정").performClick()
+        rule.onNodeWithText("확정 저장").performClick()
+        rule.waitUntil(5000) { runBlocking { countRepository.get(task.id)?.confirmed == true } }
+        scrollTo("검수 기록")
+        screenshot("automatic-confirmed")
+        scrollTo("기록 목록")
+        rule.onNodeWithText("기록 목록").performClick()
+        rule.onNodeWithTag("content").performScrollToNode(hasTestTag("record-${task.id}"))
+        rule.onNodeWithTag("record-${task.id}").performClick()
+        scrollTo("검수 기록")
+        rule.onNodeWithText("검수 기록").assertIsDisplayed()
+        org.junit.Assert.assertEquals(
+            analyzed.automatic,
+            runBlocking { countRepository.get(task.id)!!.automatic },
+        )
+        screenshot("automatic-reopened")
     }
 }

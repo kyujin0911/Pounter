@@ -1,8 +1,8 @@
 package io.github.kyujin0911.pounter
 
 import androidx.test.platform.app.InstrumentationRegistry
+import io.github.kyujin0911.pounter.data.detector.DETECTOR_VALIDATED
 import io.github.kyujin0911.pounter.data.detector.PipeDetector
-import io.github.kyujin0911.pounter.data.detector.ValidationRequiredDetector
 import io.github.kyujin0911.pounter.data.local.database.CountDatabase
 import io.github.kyujin0911.pounter.data.local.database.TaskDao
 import io.github.kyujin0911.pounter.data.local.photo.PhotoStore
@@ -15,7 +15,7 @@ import org.koin.android.ext.android.getKoin
 
 class DiInstrumentedTest {
     @Test
-    fun applicationStartsOneStorageGraphWithValidationRequiredDetector() {
+    fun applicationStartsOneStorageGraphWithTrialDetector() {
         val application =
             InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
                 as PipeApplication
@@ -26,6 +26,7 @@ class DiInstrumentedTest {
         assertSame(koin.get<CountRepository>(), koin.get<LocalCountRepository>())
         assertSame(koin.get<CountRepository>(), koin.get<CountRepository>())
         assertSame(koin.get<PipeDetector>(), koin.get<PipeDetector>())
-        assertTrue(koin.get<PipeDetector>() is ValidationRequiredDetector)
+        assertTrue(koin.get<PipeDetector>().javaClass.simpleName == "SupportedFacesPipeDetector")
+        assertTrue(!DETECTOR_VALIDATED)
     }
 }

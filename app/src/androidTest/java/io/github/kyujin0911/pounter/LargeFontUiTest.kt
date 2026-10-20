@@ -49,8 +49,8 @@ class LargeFontUiTest {
         rule.onNodeWithText("사진 촬영").assertIsDisplayed()
         rule.onNodeWithTag("content").performScrollToNode(hasText("사진 선택"))
         rule.onNodeWithText("사진 선택").assertIsDisplayed()
-        rule.onNodeWithTag("content").performScrollToNode(hasText("자동 계수 · 검증 대기"))
-        rule.onNodeWithText("자동 계수 · 검증 대기").assertIsDisplayed()
+        rule.onNodeWithTag("content").performScrollToNode(hasText("자동 계수 · 검토 필요"))
+        rule.onNodeWithText("자동 계수 · 검토 필요").assertIsDisplayed()
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val file =
             File(context.getExternalFilesDir(null), "qa/dark-large-font.png").apply {
