@@ -1,8 +1,8 @@
 # 비AI 파이프 자동 계수 설계
 
-갱신일: 2026-10-14. 상태: 접근 사용자 채택 / 평가용 복합 검출 구현 / 개발 사진 기준 미달 / 개선 설계·현장 인수 검증 대기.
+갱신일: 2026-10-20. 상태: 접근 사용자 채택 / SUPPORTED_FACES_V1 앱 내 시험 도입 / 개발 사진 기준 미달 / 독립 현장 인수 미완료.
 
-사용자·촬영 조건·범위·수치 인수 기준은 [PRD](../PRD.md)를 따른다. 2026-10-13 [자동 계수 상세 설계](superpowers/specs/2026-10-13-auto-counting-design.md) 이후 평가용 구현·실사진 검증을 진행했다. 2026-10-14에는 [개선 설계 개정 3](superpowers/specs/2026-10-13-auto-counting-improvement-design.md)과 [실행 계획](superpowers/plans/2026-10-13-auto-counting-improvement.md)에서 기존 알고리즘·순서를 재검토했다. 이번 범위는 조사/격리 재현·문서 개정이며 제품 코드·런타임 의존성·커밋·원격 작업 변경은 포함하지 않는다. 과거 실행은 [검증 이력](verification.md)의 시점별 기록과 구분한다. 이후 별도 요청으로 Task4의 EdgeDrawing 평가 경로를 Android에 구현하고 공통후처리 동등성과 실제 APK 격리를 확인했다. 일반 앱 검증 대기 검출기·DI·저장 정책은 보존하며 [Task4 결과](verification.md#task-4-edgedrawing-android-평가-경로--2026-10-14)를 따른다.
+사용자·촬영 조건·범위·수치 인수 기준은 [PRD](../PRD.md)를 따른다. 2026-10-13 [자동 계수 상세 설계](superpowers/specs/2026-10-13-auto-counting-design.md) 이후 평가용 구현·실사진 검증을 진행했다. 2026-10-14에는 [개선 설계 개정 3](superpowers/specs/2026-10-13-auto-counting-improvement-design.md)과 [실행 계획](superpowers/plans/2026-10-13-auto-counting-improvement.md)에서 기존 알고리즘·순서를 재검토했다. 당시 2026-10-14 조사 요청의 범위는 조사/격리 재현·문서 개정이었으며 제품 코드·런타임 의존성·커밋·원격 작업 변경은 포함하지 않았다. 과거 실행은 [검증 이력](verification.md)의 시점별 기록과 구분한다. 이후 별도 요청으로 Task4의 EdgeDrawing 평가 경로를 Android에 구현하고 공통후처리 동등성과 실제 APK 격리를 확인했다. 그 Task4 시점에는 일반 앱 검증 대기 검출기·DI·저장 정책을 보존했다([Task4 결과](verification.md#task-4-edgedrawing-android-평가-경로--2026-10-14)). 이후 일반 앱 연결 상태는 아래 [SUPPORTED_FACES_V1 앱 내 시험 도입](#supported_faces_v1-앱-내-시험-도입--2026-10-20) 절을 따른다. 아래 날짜별 구현·평가 기록은 해당 시점의 사실이며 현장 인수 완료를 뜻하지 않는다.
 
 ## 선택과 대안 비교
 
@@ -93,7 +93,7 @@ OpenCV 4.5 이상은 Apache 2.0 라이선스다. 라이선스 조건을 지키�
 
 사용자가 상세 설계와 계획의 직접 실행을 승인했다. `feat/auto-counting`은 계획 커밋 `b1cd809`에서 시작하며 미병합 Koin `478cb50`과 해당 문서 이력에 의존한다. 현재 로컬 main은 `04cd258`, 공통 조상은 `64f4700`이다. 원격 최신 상태는 조회하지 않았다.
 
-복합 검출기는 androidTest에만 있다. 일반 앱의 `ValidationRequiredDetector`, `DETECTOR_VALIDATED=false`, OpenCV 테스트 의존성은 유지한다. 메타데이터·좌표 복원·분석 입력·저장 대기 계약은 main 코드에 구현했다. Room v1과 기존 JSON/복원 key를 유지한다.
+당시 2026-10-13의 복합 검출기는 androidTest에만 있었다. 일반 앱의 `ValidationRequiredDetector`, `DETECTOR_VALIDATED=false`, OpenCV 테스트 의존성은 그 시점에 유지했다. 메타데이터·좌표 복원·분석 입력·저장 대기 계약은 main 코드에 구현했다. Room v1과 기존 JSON/복원 key를 유지한다.
 
 평가 처리 버전 `synthetic-v1`은 합성 기하학 검사 전용이다. 분석 긴 변 1600px, 픽셀 예산 4,000,000, 후보 상한 10,000, median 3, Canny 40/90, 국소 평균 block 31/offset 4, 짧은 반축 최소 7px·긴 반축 최대 80px, 축비 2.5, 경계 지지 .65, fit error .15, 대비 최소 0, 통합 정책 .3/.5/.85를 사용했다. 대비 최소 0은 합성 시험의 선택이며 현장 단면 검증값이 아니다. 고정 현장 설정은 아직 없다. API36 ARM 에뮬레이터의 Gaussian adaptiveThreshold 내부 float 변환에서 SIGILL이 발생해 같은 양극성 국소 평균 분리로 변경했다. 실제 S22+ 성능·메모리는 미검증이다.
 

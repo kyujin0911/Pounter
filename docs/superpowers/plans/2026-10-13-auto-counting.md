@@ -166,7 +166,7 @@ Task 1~5는 실제 정답 자료가 미확보여도 대역·합성 자료로 개
 | 단계 | 결과 | 로컬 커밋/검증 |
 |---|---|---|
 | Task 1 | 완료: 선택 메타데이터·실패 사유·이전 기록 호환 | `0f2bf52`; JSON default-null/reset/ID, TaskCodec missing/null, 기존 v1 SQL fixture 재열기 |
-| Task 2 | 완료: 대표 경계 기준 중복 통합·좌표/반경 역변환 | `f6baa5e`; crop, 비등방 회전 타원, invalid geometry, 이웃/순서/연쇄 |
+| Task 2 | 완료: 대표 경계 기준 중복 통합·좌표/반경 역변환 | `f6baa5e`; 합성 geometry 자동화 회귀: crop, 비등방 회전 타원, invalid geometry, 이웃/순서/연쇄. 별도 실사진 탐색적 시험은 아래 [사용 범위 정정](#실사진-사용-범위-정정--2026-10-20) 참조 |
 | Task 3 | 완료: preview와 별도 분석 입력·명시적 픽셀 예산·소유 자원 | `202da16`; EXIF 1~8 위치/크기, decode 크기, budget, recycle |
 | Task 4 | 완료: 평가용 복합 검출·취소 직렬 실행 | `444a2de`; 합성 타원/환형 경계, 0개, 후보 포화/301개, 초기화 실패, 취소 후 최대 native owner=1 |
 | Task 5 | 완료: 새 자동 결과 저장 대기·재시도·snapshot/stage 유효성 | `890b60d`; 저장 실패 markers/automatic/metadata 유지, 편집/확정 차단, id/revision/photo/region 불일치 차단, entry 종료 저장 경계 복원 |
