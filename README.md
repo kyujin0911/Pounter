@@ -12,6 +12,8 @@ Kotlin / Jetpack Compose / Room / 화면 단위 MVI로 만든 오프라인 사�
 
 Android Studio에서 이 폴더를 열고 Gradle Sync 후 `app`을 실행합니다. Android 8.0(API 26) 이상이 필요합니다. 최초 빌드는 Google Maven/Maven Central 접근이 필요하며, 앱 실행에는 인터넷·로그인·서버가 필요하지 않습니다.
 
+빌드 전 SDK Manager → SDK Tools → Show Package Details → NDK (Side by side)에서 **27.3.13750724 (r27d)**를 설치한다. 기본 빌드는 프로젝트 SDK의 `ndk/27.3.13750724`를 사용한다. 다른 위치의 동일 버전은 사용자 `~/.gradle/gradle.properties`에 `edgeDrawingNdk=<NDK 경로>`를 지정하거나 명령에 `-PedgeDrawingNdk=<NDK 경로>`를 추가한다. 개인 절대 경로는 저장소에 커밋하지 않는다.
+
 ```sh
 ./gradlew spotlessCheck assembleDebug testDebugUnitTest lintDebug
 ./gradlew connectedDebugAndroidTest

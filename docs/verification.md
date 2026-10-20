@@ -917,3 +917,12 @@ API36 arm64/4KB 에뮬레이터에서 실행했으며 S22+는 연결되지 않�
 샘플링 회귀 생성기의 기본 소스 경로가 이동 전 androidTest/cpp를 가리켜 FileNotFoundError인 것을 재현했다. main/cpp로 고치고 실제 원본에서 C++ 회귀 출력 생성이 성공했다. 단계 trace 생성기도 현재 main 원본에서 plain/trace/해시 출력 생성이 성공했다. 이번에는 생성된 standalone C++를 새 컴파일/실행하지 않았으며 이전 native 실행을 이번 새 실행으로 세지 않는다.
 
 관련83개 텍스트 소스/테스트/문서를 게시 대상으로 확인했다. 현장 사진·번호/오버레이·개인 경로·비밀값·APK는 포함하지 않는다. 기존 로컬 graphify 산출물은 검증 이력의 기존 방침대로 미추적 상태를 유지하며 최신 AST 갱신은 보존한다. .codex 로컬 도구/설정과 무관한 미추적 아이콘 원본도 변경·스테이징하지 않는다. graphify 전체 갱신을 생략하자는 판단이 아니라 기존 공유 범위를 유지하는 것이다.
+
+## PR #7 CodeRabbit 후속 수정 — 2026-10-20
+
+- 기준 `afd6571`, 기존 미병합 `feat/auto-counting`을 재사용했다. 미해결 리뷰 6건을 대조해 NDK 기본 설정, 외부 평가 자료 없는 테스트의 skip, fixture 격리, 실사진 사용 이력 설명을 수정했다. 이미 해결된 자동 계수 문서 상태 지적은 다시 적용하지 않았다.
+- `ndkVersion=27.3.13750724`를 고정하고 두 custom native task가 프로젝트 SDK의 동일 버전을 기본 사용한다. 명시한 `edgeDrawingNdk`는 유지하되 revision이 다르면 실패한다. 개인 경로를 비운 `-PedgeDrawingNdk=`로 SDK 기본 경로의 `assembleDebug assembleRelease assembleDebugAndroidTest testDebugUnitTest lintDebug`가 통과했다. JVM 59개 실패/오류/skip 0. `spotlessCheck`와 `git diff --check`도 통과했다.
+- 두 native task에 `Pkg.Revision=28.0.0`인 가짜 NDK 메타데이터 디렉터리를 명시하여 각각 컴파일 전에 요구 버전 불일치로 실패함을 확인했다. 실제 NDK 28로 빌드한 결과가 아니다.
+- 허용 기기 테스트: `AppDetectorInstrumentedTest`, `AppUiTest`, `EdgeDrawingInstrumentedTest` 전체와 별도 계측 프로세스의 `AppStartupCostInstrumentedTest#coldFirstAndRepeatedAppAnalysisIncludingImagePreparation`. API36/Android16 arm64 에뮬레이터에서 12개 통과, 외부 자료 미제공 3개 assumption skip, 테스트 실패 0. 고정 개발 자료의 기대값 58과 10행 위치별 기대값을 약화하지 않고 의존성을 명시했다. 실사진 입력을 제공한 재평가는 이번에 실행하지 않았으며 검출 정확도·시작 비용 개선을 주장하지 않는다. Hough 프로토타입은 실행하지 않았다.
+- 최초 `connectedDebugAndroidTest`는 APK 설치 단계의 `INSTALL_FAILED_INSUFFICIENT_STORAGE`로 테스트 0개에서 중단됐다. 앱/테스트 APK를 `adb install -r -t --abi arm64-v8a`로 직접 설치한 뒤 위 허용 목록을 `am instrument`로 실행했다. Gradle 기기 테스트 작업 자체의 성공으로 보고하지 않는다. 기존 앱 데이터 삭제·AVD 초기화는 하지 않았다.
+- 같은 원인의 EdgeDrawing fixture 3곳을 UUID cache 하위의 별도 filesDir로 격리하고 finally에서 정리한다. 별도 읽기 전용 diff 리뷰에서 추가 조치가 필요한 발견은 없었다. graphify AST 갱신을 수행했으며 로컬 graph·사용자 Gradle 경로 변경·이미지 원본은 커밋에서 제외한다.

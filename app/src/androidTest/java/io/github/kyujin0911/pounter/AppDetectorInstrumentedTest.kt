@@ -13,6 +13,7 @@ import java.util.UUID
 import kotlinx.coroutines.*
 import org.json.*
 import org.junit.Assert.*
+import org.junit.Assume.assumeTrue
 import org.junit.Test
 import org.opencv.core.*
 
@@ -21,12 +22,9 @@ class AppDetectorInstrumentedTest {
     @Test
     fun appApkPhotoStoreNativeTenRowsPreserveMarkersAndSources() = runBlocking {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
-        val root =
-            File(
-                requireNotNull(
-                    InstrumentationRegistry.getArguments().getString("radialEvaluationRoot")
-                )
-            )
+        val rootArg = InstrumentationRegistry.getArguments().getString("radialEvaluationRoot")
+        assumeTrue("Requires private development-photo evaluation data", rootArg != null)
+        val root = File(requireNotNull(rootArg))
         val output = File(context.cacheDir, "app-integration-output").apply { mkdirs() }
         val fixture = File(context.cacheDir, "app-parity-${UUID.randomUUID()}").apply { mkdirs() }
         val photos =
@@ -36,6 +34,7 @@ class AppDetectorInstrumentedTest {
                 }
             )
         val app = SupportedFacesPipeDetector(photos)
+        // Fixed ten-row development dataset; these expectations are not field acceptance.
         val expectedCounts =
             listOf(
                 listOf(151, 0, 90, 90),

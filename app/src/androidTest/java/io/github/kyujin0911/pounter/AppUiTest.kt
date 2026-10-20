@@ -150,15 +150,17 @@ class AppUiTest {
         rule.waitUntil(5000) { runBlocking { countRepository.get(task.id) == null } }
     }
 
+    // Fixed development dataset: rows.json row 2 is cap55/full, with 58 baseline markers.
     @Test
     fun automaticCorrectionConfirmAndReopen() {
-        val root =
-            File(
-                requireNotNull(
-                    androidx.test.platform.app.InstrumentationRegistry.getArguments()
-                        .getString("radialEvaluationRoot")
-                )
-            )
+        val rootArg =
+            androidx.test.platform.app.InstrumentationRegistry.getArguments()
+                .getString("radialEvaluationRoot")
+        org.junit.Assume.assumeTrue(
+            "Requires private development-photo evaluation data",
+            rootArg != null,
+        )
+        val root = File(requireNotNull(rootArg))
         val rows = org.json.JSONArray(File(root, "rows.json").readText())
         val source = rows.getJSONObject(2).getJSONObject("sample").getString("photo")
         val task = runBlocking {

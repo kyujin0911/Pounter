@@ -87,7 +87,16 @@ class EdgeDrawingInstrumentedTest {
     fun detectorNormalZeroInvalidPhotoAndRetryPreserveStatus() = runBlocking {
         val context =
             androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().targetContext
-        val photos = io.github.kyujin0911.pounter.data.local.photo.PhotoStore(context)
+        val fixture =
+            java.io.File(context.cacheDir, "ed-fixture-${java.util.UUID.randomUUID()}").apply {
+                mkdirs()
+            }
+        val photos =
+            io.github.kyujin0911.pounter.data.local.photo.PhotoStore(
+                object : android.content.ContextWrapper(context) {
+                    override fun getFilesDir() = fixture
+                }
+            )
         val file = photos.file("b-regression.jpg")
         val bitmap =
             android.graphics.Bitmap.createBitmap(320, 240, android.graphics.Bitmap.Config.ARGB_8888)
@@ -119,7 +128,7 @@ class EdgeDrawingInstrumentedTest {
             assertTrue(detector.detect(task).markers.isEmpty())
             assertEquals("SUCCESS", detector.status)
         } finally {
-            file.delete()
+            fixture.deleteRecursively()
         }
     }
 
@@ -165,7 +174,16 @@ class EdgeDrawingInstrumentedTest {
     fun allocatedNativeFailureIsDistinctAndNextDetectorRunRetries() = runBlocking {
         val context =
             androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().targetContext
-        val photos = io.github.kyujin0911.pounter.data.local.photo.PhotoStore(context)
+        val fixture =
+            java.io.File(context.cacheDir, "ed-fixture-${java.util.UUID.randomUUID()}").apply {
+                mkdirs()
+            }
+        val photos =
+            io.github.kyujin0911.pounter.data.local.photo.PhotoStore(
+                object : android.content.ContextWrapper(context) {
+                    override fun getFilesDir() = fixture
+                }
+            )
         val file = photos.file("b-exception.jpg")
         val bitmap =
             android.graphics.Bitmap.createBitmap(320, 240, android.graphics.Bitmap.Config.ARGB_8888)
@@ -207,7 +225,7 @@ class EdgeDrawingInstrumentedTest {
             }
             assertEquals("ALLOCATION_FAILURE", allocation.status)
         } finally {
-            file.delete()
+            fixture.deleteRecursively()
         }
     }
 
@@ -215,7 +233,16 @@ class EdgeDrawingInstrumentedTest {
     fun losslessJpegAndOddDecodeScaleKeepSmallLargeAndCropContracts() = runBlocking {
         val context =
             androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().targetContext
-        val photos = io.github.kyujin0911.pounter.data.local.photo.PhotoStore(context)
+        val fixture =
+            java.io.File(context.cacheDir, "ed-fixture-${java.util.UUID.randomUUID()}").apply {
+                mkdirs()
+            }
+        val photos =
+            io.github.kyujin0911.pounter.data.local.photo.PhotoStore(
+                object : android.content.ContextWrapper(context) {
+                    override fun getFilesDir() = fixture
+                }
+            )
         val bitmap =
             android.graphics.Bitmap.createBitmap(
                 2421,
@@ -311,6 +338,7 @@ class EdgeDrawingInstrumentedTest {
                 .writeText(evidence.toString(2))
         } finally {
             bitmap.recycle()
+            fixture.deleteRecursively()
         }
     }
 

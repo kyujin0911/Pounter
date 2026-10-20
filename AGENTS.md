@@ -62,6 +62,8 @@ Navigation Compose의 타입 안전 경로로 목록·계수 작업·확정 기�
 
 구현을 요청받은 이후 관련 검증:
 
+빌드 전 SDK Manager → SDK Tools → Show Package Details → NDK (Side by side)에서 **27.3.13750724 (r27d)**를 설치한다. 기본 빌드는 프로젝트 SDK의 `ndk/27.3.13750724`를 사용한다. 다른 위치의 동일 버전은 사용자 `~/.gradle/gradle.properties`에 `edgeDrawingNdk=<NDK 경로>`를 지정하거나 명령에 `-PedgeDrawingNdk=<NDK 경로>`를 추가한다. 개인 절대 경로는 저장소에 커밋하지 않는다.
+
 ```sh
 ./gradlew spotlessCheck assembleDebug testDebugUnitTest lintDebug
 ./gradlew connectedDebugAndroidTest

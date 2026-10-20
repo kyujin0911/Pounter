@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -8,6 +10,7 @@ plugins {
 
 android {
     namespace = "io.github.kyujin0911.pounter"
+    ndkVersion = "27.3.13750724"
     compileSdk = 35
     buildToolsVersion = "36.1.0"
     defaultConfig {
@@ -70,15 +73,39 @@ val edgeDrawingJni = layout.buildDirectory.dir("generated/edgeDrawingTest/jniLib
 
 android.sourceSets.getByName("androidTest").jniLibs.srcDir(edgeDrawingJni)
 
+// Share the pinned SDK NDK between app and instrumentation builds; allow explicit overrides.
+val edgeDrawingNdk =
+    providers
+        .gradleProperty("edgeDrawingNdk")
+        .filter { it.isNotBlank() }
+        .orElse(
+            androidComponents.sdkComponents.sdkDirectory.map {
+                it.dir("ndk/${android.ndkVersion}").asFile.absolutePath
+            }
+        )
+
 val buildEdgeDrawingNative by
     tasks.registering {
         inputs.dir("src/main/cpp/ed")
         inputs.files(edgeDrawingAar)
-        val ndk = providers.gradleProperty("edgeDrawingNdk")
+        val ndk = edgeDrawingNdk
         inputs.property("ndk", ndk.orElse("not-configured"))
         outputs.dir(edgeDrawingAppJni)
         doLast {
-            require(ndk.isPresent) { "Set -PedgeDrawingNdk to the existing NDK r27d directory" }
+            val ndkDirectory = file(ndk.get())
+            val revision =
+                Properties()
+                    .apply {
+                        val sourceProperties = ndkDirectory.resolve("source.properties")
+                        require(sourceProperties.isFile) {
+                            "Install NDK ${android.ndkVersion} using SDK Manager, or set -PedgeDrawingNdk=<NDK r27d directory>"
+                        }
+                        sourceProperties.inputStream().use { load(it) }
+                    }
+                    .getProperty("Pkg.Revision")
+            require(revision == android.ndkVersion) {
+                "EdgeDrawing requires NDK ${android.ndkVersion} (r27d); found $revision"
+            }
             val toolchain = file("${ndk.get()}/toolchains/llvm/prebuilt").listFiles()!!.single()
             val compiler = toolchain.resolve("bin/clang++")
             val aarDir = layout.buildDirectory.dir("generated/edgeDrawing/aar").get().asFile
@@ -131,11 +158,24 @@ val buildEdgeDrawingTestNative by
         inputs.dir("src/androidTest/cpp/ed")
         inputs.dir("src/main/cpp/ed")
         inputs.files(edgeDrawingAar)
-        val ndk = providers.gradleProperty("edgeDrawingNdk")
+        val ndk = edgeDrawingNdk
         inputs.property("ndk", ndk.orElse("not-configured"))
         outputs.dir(edgeDrawingJni)
         doLast {
-            require(ndk.isPresent) { "Set -PedgeDrawingNdk to the existing NDK r27d directory" }
+            val ndkDirectory = file(ndk.get())
+            val revision =
+                Properties()
+                    .apply {
+                        val sourceProperties = ndkDirectory.resolve("source.properties")
+                        require(sourceProperties.isFile) {
+                            "Install NDK ${android.ndkVersion} using SDK Manager, or set -PedgeDrawingNdk=<NDK r27d directory>"
+                        }
+                        sourceProperties.inputStream().use { load(it) }
+                    }
+                    .getProperty("Pkg.Revision")
+            require(revision == android.ndkVersion) {
+                "EdgeDrawing requires NDK ${android.ndkVersion} (r27d); found $revision"
+            }
             val toolchain = file("${ndk.get()}/toolchains/llvm/prebuilt").listFiles()!!.single()
             val compiler = toolchain.resolve("bin/clang++")
             val aarDir = layout.buildDirectory.dir("generated/edgeDrawingTest/aar").get().asFile

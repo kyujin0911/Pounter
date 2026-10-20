@@ -188,3 +188,7 @@ Important: `analysisPhoto`의 decode 완료 후 IO→호출 dispatcher 전달 �
 수정 후 전체 검증: `spotlessCheck assembleDebug assembleDebugAndroidTest testDebugUnitTest lintDebug` 통과, JVM 52개 실패 0. API36의 전체 허용 기기 회귀는 39개 통과 + 외부 현장 평가 2개 skip(총 41개), 실패 0. 기존 Hough 프로토타입 메서드는 목록에서 제외했다. Task 6 현장 평가와 Task 7 제공은 여전히 미완료다.
 
 리뷰가 실행 근거로 대체하지 않은 항목: 실제 사진 정확도·밀집 분리, S22+ 시간/메모리/검수 효용, 실제 OS 프로세스 종료/force-stop, API36.1 Espresso 호환성. 이들은 위 남은 검증으로 유지한다. 미뤄둔 Minor 리뷰 항목은 없다. 브랜치/worktree를 로컬 그대로 보존하며 원격 작업은 수행하지 않는다. AST graphify는 갱신했고, 이번 worktree에서 새로 생성한 graph 산출물은 로컬에 두어 코드/문서 커밋에 포함하지 않았다.
+
+## 실사진 사용 범위 정정 — 2026-10-20
+
+위 Task 2 구현·자동화 회귀는 합성 geometry를 사용했다. 별도로 사용자 제공 현장 사진 5장으로 탐색적 시험을 수행했으며, 당시에는 위치별 정답과 고정 구성이 없어 공식 튜닝·독립 인수 평가로 계산하지 않았다. 이후 같은 사진으로 수행한 개발 평가와 앱 시험 도입은 [검증 이력](../../verification.md)에 기록한다. 같은 개발 사진의 DRAFT 정답·고정 구성 추가는 독립 현장 인수 근거를 대신하지 않는다.

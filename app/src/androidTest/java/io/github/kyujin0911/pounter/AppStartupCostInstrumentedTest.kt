@@ -13,6 +13,7 @@ import kotlinx.coroutines.runBlocking
 import org.json.JSONArray
 import org.json.JSONObject
 import org.junit.Assert.*
+import org.junit.Assume.assumeTrue
 import org.junit.Test
 import org.opencv.android.OpenCVLoader
 
@@ -55,12 +56,10 @@ class AppStartupCostInstrumentedTest {
 
     @Test
     fun coldFirstAndRepeatedAppAnalysisIncludingImagePreparation() = runBlocking {
-        val root =
-            File(
-                requireNotNull(
-                    InstrumentationRegistry.getArguments().getString("radialEvaluationRoot")
-                )
-            )
+        val rootArg = InstrumentationRegistry.getArguments().getString("radialEvaluationRoot")
+        assumeTrue("Requires private development-photo evaluation data", rootArg != null)
+        val root = File(requireNotNull(rootArg))
+        // Fixed development dataset: row 2 is cap55/full; 58 is its regression baseline.
         val row = JSONArray(File(root, "rows.json").readText()).getJSONObject(2)
         val source = File(root, row.getJSONObject("sample").getString("photo"))
         val fixture = File(context.cacheDir, "app-cost-${UUID.randomUUID()}").apply { mkdirs() }
