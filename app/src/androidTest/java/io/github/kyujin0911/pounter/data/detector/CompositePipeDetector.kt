@@ -20,6 +20,7 @@ class CompositePipeDetector(
     private val config: DetectionConfig,
     private val initialize: () -> Boolean = { OpenCVLoader.initLocal() },
     private val nativeProbe: () -> Unit = {},
+    private val diagnostics: DetectionDiagnostics? = null,
 ) : PipeDetector {
     private val executionMutex = Mutex()
     private var initialized = false
@@ -40,26 +41,33 @@ class CompositePipeDetector(
             executionMutex.withLock {
                 onStage(AnalysisStage.PROCESSING)
                 ensureActive()
+                diagnostics?.reset()
                 val started = System.nanoTime()
                 initializationMillis = 0
                 candidateCounts = emptyMap()
                 rejectedCandidateCounts = emptyMap()
-                if (!initialized) {
-                    val initStarted = System.nanoTime()
-                    val success =
-                        try {
-                            initialize()
-                        } catch (failure: Exception) {
-                            throw DetectionFailure(DetectionFailureReason.INITIALIZATION, failure)
-                        } catch (failure: LinkageError) {
-                            throw DetectionFailure(DetectionFailureReason.INITIALIZATION, failure)
-                        }
-                    initializationMillis = (System.nanoTime() - initStarted) / 1_000_000
-                    if (!success) throw DetectionFailure(DetectionFailureReason.INITIALIZATION)
-                    initialized = true
-                }
-                ensureActive()
                 try {
+                    if (!initialized) {
+                        val initStarted = System.nanoTime()
+                        val success =
+                            try {
+                                initialize()
+                            } catch (failure: Exception) {
+                                throw DetectionFailure(
+                                    DetectionFailureReason.INITIALIZATION,
+                                    failure,
+                                )
+                            } catch (failure: LinkageError) {
+                                throw DetectionFailure(
+                                    DetectionFailureReason.INITIALIZATION,
+                                    failure,
+                                )
+                            }
+                        initializationMillis = (System.nanoTime() - initStarted) / 1_000_000
+                        if (!success) throw DetectionFailure(DetectionFailureReason.INITIALIZATION)
+                        initialized = true
+                    }
+                    ensureActive()
                     photos
                         .analysisPhoto(
                             task.photoName,
@@ -109,7 +117,8 @@ class CompositePipeDetector(
                                 ensureActive()
                                 val rejected = mutableMapOf<String, Int>()
                                 val candidates =
-                                    CandidateExtractor.extract(gray, config) { reason ->
+                                    CandidateExtractor.extract(gray, config, diagnostics) { reason
+                                        ->
                                         rejected[reason] = (rejected[reason] ?: 0) + 1
                                     }
                                 rejectedCandidateCounts = rejected.toMap()
@@ -136,7 +145,15 @@ class CompositePipeDetector(
                                             (it.centerYPx / sy / task.height).toFloat(),
                                         )
                                     }
-                                val merged = mergeCandidates(inside, config.mergePolicy)
+                                diagnostics?.count("mergeInput", amount = inside.size)
+                                val merged =
+                                    mergeWithDiagnostics(
+                                        inside,
+                                        config.mergePolicy,
+                                        diagnostics,
+                                        fullCandidates,
+                                    )
+                                diagnostics?.count("mergeOutput", amount = merged.size)
                                 if (merged.size > 300)
                                     throw DetectionFailure(DetectionFailureReason.COUNT_LIMIT)
                                 val markers =
@@ -156,10 +173,13 @@ class CompositePipeDetector(
                             }
                         }
                 } catch (cancellation: CancellationException) {
+                    diagnostics?.finish("CANCELLED")
                     throw cancellation
                 } catch (failure: DetectionFailure) {
+                    diagnostics?.finish(failure.reason.name)
                     throw failure
                 } catch (failure: Exception) {
+                    diagnostics?.finish("PROCESSING")
                     throw DetectionFailure(DetectionFailureReason.PROCESSING, failure)
                 }
             }

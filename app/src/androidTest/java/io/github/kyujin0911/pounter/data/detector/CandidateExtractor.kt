@@ -10,8 +10,12 @@ object CandidateExtractor {
     suspend fun extract(
         gray: Mat,
         config: DetectionConfig,
+        diagnostics: DetectionDiagnostics? = null,
+        masks: Set<String> = setOf("canny", "binary", "inverse"),
         onRejected: (String) -> Unit = {},
     ): List<EllipseCandidate> {
+        require(masks.isNotEmpty() && masks.all { it in setOf("canny", "binary", "inverse") })
+        diagnostics?.reset()
         val blurred = Mat()
         val edges = Mat()
         val binary = Mat()
@@ -27,7 +31,7 @@ object CandidateExtractor {
             val intensities = ByteArray(width * height)
             gray.get(0, 0, intensities)
             val candidates = mutableListOf<EllipseCandidate>()
-            suspend fun collect(mask: Mat, source: CandidateSource) {
+            suspend fun collect(mask: Mat, source: CandidateSource, maskId: String) {
                 val contours = mutableListOf<MatOfPoint>()
                 val hierarchy = Mat()
                 try {
@@ -39,6 +43,7 @@ object CandidateExtractor {
                         Imgproc.RETR_LIST,
                         Imgproc.CHAIN_APPROX_NONE,
                     )
+                    diagnostics?.count("raw", maskId, contours.size)
                     // Bound raw contour work as well as accepted candidates; never return a partial
                     // list.
                     if (contours.size >= config.maxCandidates)
@@ -46,7 +51,10 @@ object CandidateExtractor {
                     for (contour in contours) {
                         coroutineContext.ensureActive()
                         val points = contour.toArray()
+                        val observationId =
+                            diagnostics?.raw(maskId, points.map { it.x to it.y }) ?: -1
                         if (points.size < 5) {
+                            diagnostics?.observe(observationId, "rejected", "POINT_COUNT")
                             onRejected("POINT_COUNT")
                             continue
                         }
@@ -55,11 +63,13 @@ object CandidateExtractor {
                             try {
                                 Imgproc.fitEllipse(curve)
                             } catch (_: CvException) {
+                                diagnostics?.observe(observationId, "rejected", "FIT_FAILURE")
                                 onRejected("FIT_FAILURE")
                                 continue
                             } finally {
                                 curve.release()
                             }
+                        diagnostics?.count("fit", maskId)
                         val major = max(ellipse.size.width, ellipse.size.height) / 2
                         val minor = min(ellipse.size.width, ellipse.size.height) / 2
                         val cx = ellipse.center.x
@@ -70,12 +80,22 @@ object CandidateExtractor {
                                 major > config.maxSemiAxisPx ||
                                 major / minor > config.maxAxisRatio
                         ) {
+                            diagnostics?.observe(
+                                observationId,
+                                "rejected",
+                                "GEOMETRY",
+                                geometry = observationGeometry(ellipse),
+                            )
                             onRejected("GEOMETRY")
                             continue
                         }
-                        val angle =
-                            (ellipse.angle +
-                                if (ellipse.size.width < ellipse.size.height) 90 else 0) * PI / 180
+                        val angle = observationGeometry(ellipse).angleRadians
+                        diagnostics?.count("geometry", maskId)
+                        diagnostics?.observe(
+                            observationId,
+                            "geometry",
+                            geometry = DetectionDiagnostics.Geometry(cx, cy, major, minor, angle),
+                        )
                         val shape =
                             EllipseCandidate(
                                 cx,
@@ -134,6 +154,14 @@ object CandidateExtractor {
                                 fitError <= config.maxFitError &&
                                 contrast >= config.minContrast
                         ) {
+                            diagnostics?.count("quality", maskId)
+                            diagnostics?.observe(
+                                observationId,
+                                "quality",
+                                "ACCEPTED",
+                                quality = listOf(support, fitError, contrast),
+                                acceptedIndex = candidates.size,
+                            )
                             candidates +=
                                 shape.copy(
                                     edgeSupport = support,
@@ -142,15 +170,25 @@ object CandidateExtractor {
                                 )
                             if (candidates.size >= config.maxCandidates)
                                 throw DetectionFailure(DetectionFailureReason.CANDIDATE_SATURATION)
-                        } else onRejected("QUALITY")
+                        } else {
+                            diagnostics?.observe(
+                                observationId,
+                                "rejected",
+                                "QUALITY",
+                                quality = listOf(support, fitError, contrast),
+                            )
+                            onRejected("QUALITY")
+                        }
                     }
                 } finally {
                     contours.forEach { it.release() }
                     hierarchy.release()
                 }
             }
-            collect(edges, CandidateSource.CONTOUR)
+            if ("canny" in masks) collect(edges, CandidateSource.CONTOUR, "canny")
             for (polarity in listOf(Imgproc.THRESH_BINARY, Imgproc.THRESH_BINARY_INV)) {
+                val maskId = if (polarity == Imgproc.THRESH_BINARY) "binary" else "inverse"
+                if (maskId !in masks) continue
                 coroutineContext.ensureActive()
                 Imgproc.adaptiveThreshold(
                     blurred,
@@ -161,9 +199,20 @@ object CandidateExtractor {
                     config.adaptiveBlockSize,
                     config.adaptiveOffset,
                 )
-                collect(binary, CandidateSource.REGION)
+                collect(
+                    binary,
+                    CandidateSource.REGION,
+                    if (polarity == Imgproc.THRESH_BINARY) "binary" else "inverse",
+                )
             }
+            diagnostics?.finish("SUCCESS")
             return candidates
+        } catch (failure: Throwable) {
+            diagnostics?.finish(
+                if (failure is kotlinx.coroutines.CancellationException) "CANCELLED"
+                else (failure as? DetectionFailure)?.reason?.name ?: "FAILED"
+            )
+            throw failure
         } finally {
             blurred.release()
             edges.release()
@@ -171,3 +220,12 @@ object CandidateExtractor {
         }
     }
 }
+
+internal fun observationGeometry(ellipse: RotatedRect) =
+    DetectionDiagnostics.Geometry(
+        ellipse.center.x,
+        ellipse.center.y,
+        max(ellipse.size.width, ellipse.size.height) / 2,
+        min(ellipse.size.width, ellipse.size.height) / 2,
+        (ellipse.angle + if (ellipse.size.width < ellipse.size.height) 90 else 0) * PI / 180,
+    )

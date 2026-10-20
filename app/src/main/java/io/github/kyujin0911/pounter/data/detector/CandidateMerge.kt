@@ -20,6 +20,7 @@ data class MergePolicy(
 fun mergeCandidates(
     candidates: List<EllipseCandidate>,
     policy: MergePolicy,
+    onRepresentative: (EllipseCandidate, Int) -> Unit = { _, _ -> },
 ): List<EllipseCandidate> {
     val ordered =
         candidates.sortedWith(
@@ -35,6 +36,7 @@ fun mergeCandidates(
     val representatives = mutableListOf<EllipseCandidate>()
     for (candidate in ordered) {
         val index = representatives.indexOfFirst { sameRim(it, candidate, policy) }
+        onRepresentative(candidate, if (index < 0) representatives.size else index)
         if (index < 0) representatives.add(candidate)
         else
             representatives[index] =

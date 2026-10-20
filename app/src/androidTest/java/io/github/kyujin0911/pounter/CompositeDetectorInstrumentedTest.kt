@@ -57,6 +57,22 @@ class CompositeDetectorInstrumentedTest {
     }
 
     @Test
+    fun fourthPositionalArgumentRemainsNativeProbe() = runBlocking {
+        fixture(1) { task ->
+            var calls = 0
+            val detector =
+                CompositePipeDetector(
+                    photos,
+                    DetectionConfig.synthetic(),
+                    { org.opencv.android.OpenCVLoader.initLocal() },
+                    { calls++ },
+                )
+            detector.detect(task)
+            assertEquals(1, calls)
+        }
+    }
+
+    @Test
     fun ringsAndMetalEllipsesProduceOneMarkerEach() = runBlocking {
         fixture(2) { task ->
             val detected = CompositePipeDetector(photos, DetectionConfig.synthetic()).detect(task)
@@ -89,6 +105,31 @@ class CompositeDetectorInstrumentedTest {
         fixture(301) { task ->
             expectFailure(DetectionFailureReason.COUNT_LIMIT) {
                 CompositePipeDetector(photos, DetectionConfig.synthetic()).detect(task)
+            }
+        }
+    }
+
+    @Test
+    fun initializationFailuresLeaveTerminalDiagnosticStatus() = runBlocking {
+        fixture(0) { task ->
+            for (initialize in
+                listOf<() -> Boolean>(
+                    { false },
+                    { throw IllegalStateException("init") },
+                    { throw UnsatisfiedLinkError("init") },
+                )) {
+                val trace = DetectionDiagnostics()
+                expectFailure(DetectionFailureReason.INITIALIZATION) {
+                    CompositePipeDetector(
+                            photos,
+                            DetectionConfig.synthetic(),
+                            initialize = initialize,
+                            diagnostics = trace,
+                        )
+                        .detect(task)
+                }
+                assertEquals("INITIALIZATION", trace.snapshot().status)
+                assertEquals(0, trace.snapshot().totals.getValue("raw"))
             }
         }
     }

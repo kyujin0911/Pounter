@@ -56,6 +56,24 @@ data class EllipseCandidate(
     }
 }
 
+/** Pure ROI-pixel geometry; quality and generator ownership stay outside this value. */
+data class EllipseGeometry(
+    val centerXPx: Double,
+    val centerYPx: Double,
+    val semiMajorPx: Double,
+    val semiMinorPx: Double,
+    val angleRadians: Double,
+) {
+    init {
+        require(
+            listOf(centerXPx, centerYPx, semiMajorPx, semiMinorPx, angleRadians).all {
+                it.isFinite()
+            }
+        )
+        require(semiMajorPx >= semiMinorPx && semiMinorPx > 0)
+    }
+}
+
 data class AnalysisTransform(
     val photoWidthPx: Int,
     val photoHeightPx: Int,
@@ -78,7 +96,20 @@ data class AnalysisTransform(
     }
 }
 
-fun toMarker(candidate: EllipseCandidate, transform: AnalysisTransform, markerId: String): Marker {
+fun toMarker(candidate: EllipseCandidate, transform: AnalysisTransform, markerId: String): Marker =
+    toMarker(
+        EllipseGeometry(
+            candidate.centerXPx,
+            candidate.centerYPx,
+            candidate.semiMajorPx,
+            candidate.semiMinorPx,
+            candidate.angleRadians,
+        ),
+        transform,
+        markerId,
+    )
+
+fun toMarker(candidate: EllipseGeometry, transform: AnalysisTransform, markerId: String): Marker {
     val c = cos(candidate.angleRadians)
     val s = sin(candidate.angleRadians)
     val a2 = candidate.semiMajorPx * candidate.semiMajorPx

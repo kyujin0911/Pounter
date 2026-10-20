@@ -24,26 +24,71 @@ fun matchDetections(
         expected.map { it.id }.distinct().size == expected.size &&
             actual.map { it.id }.distinct().size == actual.size
     )
+    return maximumMatch(expected, actual) { target, detection ->
+            hypot((target.x - detection.x).toDouble(), (target.y - detection.y).toDouble()).takeIf {
+                it <= normalizedTolerance
+            }
+        }
+        .metrics
+}
+
+data class DetectionMatchResult(
+    val metrics: DetectionMetrics,
+    val expectedToActualIds: Map<String, String>,
+    val unmatchedExpectedIds: List<String>,
+    val unmatchedActualIds: List<String>,
+) {
+    val netDifference: Int
+        get() = metrics.falsePositive - metrics.missing
+}
+
+/** Coordinates are normalized against the whole EXIF-oriented reference, never the ROI. */
+fun matchDetectionsInReferencePixels(
+    expected: List<Marker>,
+    actual: List<Marker>,
+    referenceWidth: Int,
+    referenceHeight: Int,
+    tolerancesPx: Map<String, Double>,
+): DetectionMatchResult {
+    require(referenceWidth > 0 && referenceHeight > 0)
+    for (markers in listOf(expected, actual)) {
+        require(markers.map { it.id }.distinct().size == markers.size)
+        require(
+            markers.all {
+                it.id.isNotBlank() &&
+                    it.x.isFinite() &&
+                    it.y.isFinite() &&
+                    it.x in 0f..1f &&
+                    it.y in 0f..1f
+            }
+        )
+    }
+    require(tolerancesPx.keys == expected.map { it.id }.toSet())
+    require(tolerancesPx.values.all { it.isFinite() && it > 0 })
+    return maximumMatch(expected, actual) { target, detection ->
+        hypot(
+                (target.x.toDouble() - detection.x) * referenceWidth,
+                (target.y.toDouble() - detection.y) * referenceHeight,
+            )
+            .takeIf { it <= tolerancesPx.getValue(target.id) }
+    }
+}
+
+private fun maximumMatch(
+    expected: List<Marker>,
+    actual: List<Marker>,
+    distance: (Marker, Marker) -> Double?,
+): DetectionMatchResult {
     val targets = expected.sortedBy { it.id }
     val detections = actual.sortedBy { it.id }
     val adjacency =
         targets.map { target ->
             detections.indices
-                .filter { index ->
-                    hypot(
-                        (target.x - detections[index].x).toDouble(),
-                        (target.y - detections[index].y).toDouble(),
-                    ) <= normalizedTolerance
-                }
+                .mapNotNull { index -> distance(target, detections[index])?.let { index to it } }
                 .sortedWith(
-                    compareBy<Int> {
-                            hypot(
-                                (target.x - detections[it].x).toDouble(),
-                                (target.y - detections[it].y).toDouble(),
-                            )
-                        }
-                        .thenBy { detections[it].id }
+                    compareBy<Pair<Int, Double>> { it.second }.thenBy { detections[it.first].id }
                 )
+                .map { it.first }
         }
     val owners = IntArray(detections.size) { -1 }
     fun augment(target: Int, visited: BooleanArray): Boolean {
@@ -58,5 +103,14 @@ fun matchDetections(
         return false
     }
     val matched = targets.indices.count { augment(it, BooleanArray(detections.size)) }
-    return DetectionMetrics(matched, targets.size - matched, detections.size - matched)
+    val pairs =
+        detections.indices
+            .filter { owners[it] >= 0 }
+            .associate { targets[owners[it]].id to detections[it].id }
+    return DetectionMatchResult(
+        DetectionMetrics(matched, targets.size - matched, detections.size - matched),
+        pairs,
+        targets.filter { it.id !in pairs }.map { it.id },
+        detections.indices.filter { owners[it] < 0 }.map { detections[it].id },
+    )
 }
