@@ -47,7 +47,7 @@ dependencies {
     ksp("androidx.room:room-compiler:2.7.2")
     implementation("androidx.exifinterface:exifinterface:1.4.1")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
-    androidTestImplementation("org.opencv:opencv:4.12.0")
+    implementation("org.opencv:opencv:4.12.0")
     debugImplementation("androidx.compose.ui:ui-tooling:1.8.3")
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.10.2")
@@ -56,3 +56,128 @@ dependencies {
     androidTestImplementation("androidx.compose.ui:ui-test-junit4:1.8.3")
     debugImplementation("androidx.compose.ui:ui-test-manifest:1.8.3")
 }
+
+// Same pinned OpenCV AAR supplies runtime libraries and matching native headers.
+val edgeDrawingAar by configurations.creating
+
+dependencies { edgeDrawingAar("org.opencv:opencv:4.12.0@aar") }
+
+val edgeDrawingAppJni = layout.buildDirectory.dir("generated/edgeDrawing/jniLibs")
+
+android.sourceSets.getByName("main").jniLibs.srcDir(edgeDrawingAppJni)
+
+val edgeDrawingJni = layout.buildDirectory.dir("generated/edgeDrawingTest/jniLibs")
+
+android.sourceSets.getByName("androidTest").jniLibs.srcDir(edgeDrawingJni)
+
+val buildEdgeDrawingNative by
+    tasks.registering {
+        inputs.dir("src/main/cpp/ed")
+        inputs.files(edgeDrawingAar)
+        val ndk = providers.gradleProperty("edgeDrawingNdk")
+        inputs.property("ndk", ndk.orElse("not-configured"))
+        outputs.dir(edgeDrawingAppJni)
+        doLast {
+            require(ndk.isPresent) { "Set -PedgeDrawingNdk to the existing NDK r27d directory" }
+            val toolchain = file("${ndk.get()}/toolchains/llvm/prebuilt").listFiles()!!.single()
+            val compiler = toolchain.resolve("bin/clang++")
+            val aarDir = layout.buildDirectory.dir("generated/edgeDrawing/aar").get().asFile
+            copy {
+                from(zipTree(edgeDrawingAar.singleFile))
+                into(aarDir)
+            }
+            val targets =
+                mapOf(
+                    "arm64-v8a" to "aarch64-linux-android21",
+                    "armeabi-v7a" to "armv7a-linux-androideabi21",
+                    "x86" to "i686-linux-android21",
+                    "x86_64" to "x86_64-linux-android21",
+                )
+            for ((abi, target) in targets) {
+                val output = edgeDrawingAppJni.get().asFile.resolve(abi).apply { mkdirs() }
+                exec {
+                    commandLine(
+                        compiler,
+                        "--target=$target",
+                        "-std=c++17",
+                        "-O2",
+                        "-g0",
+                        "-fPIC",
+                        "-shared",
+                        "-I${aarDir}/prefab/modules/opencv_java4/include",
+                        "-Isrc/main/cpp/ed",
+                        "-DPOUNTER_PRODUCTION",
+                        "src/main/cpp/ed/edge_drawing.cpp",
+                        "src/main/cpp/ed/bridge.cpp",
+                        "-L${aarDir}/prefab/modules/opencv_java4/libs/android.$abi",
+                        "-lopencv_java4",
+                        "-Wl,--no-undefined",
+                        "-Wl,-z,max-page-size=16384",
+                        "-Wl,--build-id=none",
+                        "-o",
+                        output.resolve("libpounter_ed.so"),
+                    )
+                }
+            }
+        }
+    }
+
+tasks
+    .matching { it.name.matches(Regex("merge(Debug|Release)JniLibFolders")) }
+    .configureEach { dependsOn(buildEdgeDrawingNative) }
+
+val buildEdgeDrawingTestNative by
+    tasks.registering {
+        inputs.dir("src/androidTest/cpp/ed")
+        inputs.dir("src/main/cpp/ed")
+        inputs.files(edgeDrawingAar)
+        val ndk = providers.gradleProperty("edgeDrawingNdk")
+        inputs.property("ndk", ndk.orElse("not-configured"))
+        outputs.dir(edgeDrawingJni)
+        doLast {
+            require(ndk.isPresent) { "Set -PedgeDrawingNdk to the existing NDK r27d directory" }
+            val toolchain = file("${ndk.get()}/toolchains/llvm/prebuilt").listFiles()!!.single()
+            val compiler = toolchain.resolve("bin/clang++")
+            val aarDir = layout.buildDirectory.dir("generated/edgeDrawingTest/aar").get().asFile
+            copy {
+                from(zipTree(edgeDrawingAar.singleFile))
+                into(aarDir)
+            }
+            val targets =
+                mapOf(
+                    "arm64-v8a" to "aarch64-linux-android21",
+                    "armeabi-v7a" to "armv7a-linux-androideabi21",
+                    "x86" to "i686-linux-android21",
+                    "x86_64" to "x86_64-linux-android21",
+                )
+            for ((abi, target) in targets) {
+                val output = edgeDrawingJni.get().asFile.resolve(abi).apply { mkdirs() }
+                exec {
+                    commandLine(
+                        compiler,
+                        "--target=$target",
+                        "-std=c++17",
+                        "-O2",
+                        "-g0",
+                        "-fPIC",
+                        "-shared",
+                        "-I${aarDir}/prefab/modules/opencv_java4/include",
+                        "-Isrc/main/cpp/ed",
+                        "src/main/cpp/ed/edge_drawing.cpp",
+                        "src/androidTest/cpp/ed/bridge.cpp",
+                        "-L${aarDir}/prefab/modules/opencv_java4/libs/android.$abi",
+                        "-lopencv_java4",
+                        "-Wl,--no-undefined",
+                        "-Wl,-z,max-page-size=16384",
+                        "-Wl,--build-id=none",
+                        "-o",
+                        output.resolve("libpounter_ed_test.so"),
+                    )
+                }
+            }
+        }
+    }
+
+tasks
+    .matching { it.name == "mergeDebugAndroidTestJniLibFolders" }
+    .configureEach { dependsOn(buildEdgeDrawingTestNative) }
