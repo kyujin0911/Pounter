@@ -1,5 +1,6 @@
 package io.github.kyujin0911.pounter.data.local.database
 
+import io.github.kyujin0911.pounter.core.model.AnalysisMetadata
 import io.github.kyujin0911.pounter.core.model.CountTask
 import io.github.kyujin0911.pounter.core.model.Marker
 import io.github.kyujin0911.pounter.core.model.Region
@@ -61,6 +62,12 @@ internal object TaskCodec {
                 put("millis", task.analysisMillis ?: JSONObject.NULL)
                 put("confirmed", task.confirmedAt ?: JSONObject.NULL)
                 put("deleted", task.deleted)
+                put(
+                    "analysisMetadata",
+                    task.analysisMetadata?.let {
+                        JSONObject().put("detectorVersion", it.detectorVersion)
+                    } ?: JSONObject.NULL,
+                )
             }
             .toString()
 
@@ -88,6 +95,9 @@ internal object TaskCodec {
             if (taskJson.isNull("millis")) null else taskJson.getLong("millis"),
             if (taskJson.isNull("confirmed")) null else taskJson.getLong("confirmed"),
             taskJson.getBoolean("deleted"),
+            taskJson.optJSONObject("analysisMetadata")?.let {
+                AnalysisMetadata(it.getString("detectorVersion"))
+            },
         )
     }
 }

@@ -190,3 +190,8 @@ Application에서 한 번 초기화하고 기존 삭제 복구·미참조 사진
 수명·호환 버전 근거와 테스트 격리는 [DI 설계](dependency_injection.md), 실행 결과·잔여 미검증은 [검증 이력](verification.md)을 따른다. annotation/Koin KSP·새 Gradle 모듈·별도 Store·UseCase는 추가하지 않았다.
 
 근거: [Kotlin 공식 컨벤션](https://kotlinlang.org/docs/coding-conventions.html), [Spotless Gradle](https://github.com/diffplug/spotless/tree/main/plugin-gradle), [ktfmt](https://github.com/Kotlin/ktfmt). 역할·패키지·Boolean·단위·완료 조건은 Pounter 자체 정책이다.
+
+
+### 검출기 연결 갱신 — 2026-10-20
+
+최신 앱 내 시험 도입 승인으로 AppModule의 PipeDetector는 검증 대기 구현에서 SupportedFacesPipeDetector(PhotoStore)로 교체했다. 기존 생성자 주입·single 범위와 Repository 경유·ViewModel/화면 계약은 그대로다. 평가 전용 정책·진단은 androidTest에 남기며 공통 계산은 data/detector, native 원본은 main/cpp/ed에서 공유한다. 과거 검증 대기 연결 설명은 당시 이력이다.

@@ -3,8 +3,12 @@ package io.github.kyujin0911.pounter
 import android.graphics.Bitmap
 import android.net.Uri
 import androidx.lifecycle.SavedStateHandle
+import androidx.lifecycle.viewModelScope
+import io.github.kyujin0911.pounter.core.model.AnalysisMetadata
 import io.github.kyujin0911.pounter.core.model.CountTask
 import io.github.kyujin0911.pounter.core.model.Marker
+import io.github.kyujin0911.pounter.core.model.Region
+import io.github.kyujin0911.pounter.data.detector.AnalysisStage
 import io.github.kyujin0911.pounter.data.detector.DETECTOR_VALIDATED
 import io.github.kyujin0911.pounter.data.detector.Detection
 import io.github.kyujin0911.pounter.data.detector.ValidationRequiredDetector
@@ -16,6 +20,7 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
@@ -24,6 +29,7 @@ import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.Json
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -59,6 +65,8 @@ class CountViewModelTest {
         var importedTask: CountTask? = null
         var analysisResultGate: CompletableDeferred<Detection>? = null
         var saveGate: CompletableDeferred<Unit>? = null
+        var afterCommitGate: CompletableDeferred<Unit>? = null
+        var stageCallback: ((AnalysisStage) -> Unit)? = null
 
         override suspend fun get(id: String) = storedTask.takeIf { it.id == id }
 
@@ -77,12 +85,19 @@ class CountViewModelTest {
             check(task.revision == storedTask.revision)
             storedTask = task.copy(revision = task.revision + 1)
             tasks.value = listOf(storedTask)
+            afterCommitGate?.let { withContext(NonCancellable) { it.await() } }
             return storedTask
         }
 
         override suspend fun delete(task: CountTask) {
             if (hasDeleteFailure) error("삭제 실패")
             tasks.value = emptyList()
+        }
+
+        override suspend fun detect(task: CountTask, onStage: (AnalysisStage) -> Unit): Detection {
+            stageCallback = onStage
+            onStage(AnalysisStage.WAITING)
+            return detect(task)
         }
 
         override suspend fun detect(task: CountTask): Detection {
@@ -96,6 +111,197 @@ class CountViewModelTest {
         runCurrent()
         return viewModel
     }
+
+    @Test
+    fun analysisSaveFailureKeepsNewResultForRetry() =
+        runTest(dispatcher) {
+            val repo = FakeRepository()
+            val vm = open(repo)
+            repo.hasSaveFailure = true
+            val result =
+                Detection(
+                    listOf(Marker("new", .2f, .3f, .02f)),
+                    7,
+                    AnalysisMetadata("evaluation-v1"),
+                )
+            repo.analysisResultGate = CompletableDeferred(result)
+            vm.dispatch(CountAction.Analyze)
+            runCurrent()
+            assertEquals(result.markers, vm.uiState.value.task!!.markers)
+            assertEquals(result.markers, vm.uiState.value.task!!.automatic)
+            assertEquals(result.analysisMetadata, vm.uiState.value.task!!.analysisMetadata)
+            assertTrue(vm.uiState.value.unsavedChanges)
+            vm.dispatch(CountAction.Add(.5f, .5f))
+            vm.dispatch(CountAction.Analyze)
+            vm.dispatch(CountAction.Confirm)
+            runCurrent()
+            assertEquals(1, repo.saveCount)
+            repo.hasSaveFailure = false
+            vm.dispatch(CountAction.RetrySave)
+            runCurrent()
+            assertEquals(result.markers, repo.storedTask.markers)
+            assertEquals(2, repo.saveCount)
+            assertFalse(vm.uiState.value.unsavedChanges)
+        }
+
+    @Test
+    fun failedReanalysisKeepsCorrections() =
+        runTest(dispatcher) {
+            val repo = FakeRepository()
+            repo.storedTask = repo.storedTask.edit(listOf(Marker("m", .5f, .5f, .02f, true)))
+            val vm = open(repo)
+            repo.analysisResultGate =
+                CompletableDeferred<Detection>().also {
+                    it.completeExceptionally(IllegalStateException("failed"))
+                }
+            vm.dispatch(CountAction.Analyze)
+            runCurrent()
+            assertEquals(repo.storedTask, vm.uiState.value.task)
+            assertEquals(0, repo.saveCount)
+        }
+
+    @Test
+    fun oldPendingSnapshotRestoresWithoutMetadata() =
+        runTest(dispatcher) {
+            val repo = FakeRepository()
+            val old =
+                """{"id":"task","photoName":"photo.jpg","width":1000,"height":1500,"createdAt":1,"analyzed":true,"markers":[{"id":"old","x":0.5,"y":0.5,"radius":0.02,"manual":true}]}"""
+            val vm =
+                CountViewModel(
+                    repo,
+                    SavedStateHandle(mapOf("taskId" to "task", "pendingSave" to old)),
+                )
+            runCurrent()
+            assertNull(vm.uiState.value.task!!.analysisMetadata)
+            assertTrue(vm.uiState.value.unsavedChanges)
+            vm.dispatch(CountAction.RetrySave)
+            runCurrent()
+            assertEquals("old", repo.storedTask.markers.single().id)
+        }
+
+    @Test
+    fun savedResultAtCancellationBoundaryIsReconciled() =
+        runTest(dispatcher) {
+            val repo = FakeRepository()
+            val pending =
+                repo.storedTask.copy(
+                    markers = listOf(Marker("new", .5f, .5f, .02f)),
+                    analysisMetadata = AnalysisMetadata("v"),
+                )
+            repo.storedTask = pending.copy(revision = 1, updatedAt = 10)
+            val handle =
+                SavedStateHandle(
+                    mapOf("taskId" to "task", "pendingSave" to Json.encodeToString(pending))
+                )
+            val vm = CountViewModel(repo, handle)
+            runCurrent()
+            assertFalse(vm.uiState.value.unsavedChanges)
+            assertNull(handle.get<String>("pendingSave"))
+            vm.dispatch(CountAction.RetrySave)
+            runCurrent()
+            assertEquals(0, repo.saveCount)
+        }
+
+    @Test
+    fun lateResultWithChangedSnapshotIsIgnored() =
+        runTest(dispatcher) {
+            for (change in
+                listOf<(CountTask) -> CountTask>(
+                    { it.copy(id = "other") },
+                    { it.copy(revision = 1) },
+                    { it.copy(photoName = "other.jpg") },
+                    { it.copy(region = Region(.1f, .1f, .9f, .9f)) },
+                )) {
+                val repo = FakeRepository()
+                val vm = open(repo)
+                repo.analysisResultGate = CompletableDeferred()
+                vm.dispatch(CountAction.Analyze)
+                runCurrent()
+                // Simulate a restored/replaced snapshot while the asynchronous result is in flight.
+                val field =
+                    CountViewModel::class.java.getDeclaredField("_uiState").apply {
+                        isAccessible = true
+                    }
+                @Suppress("UNCHECKED_CAST")
+                val state =
+                    field.get(vm)
+                        as MutableStateFlow<io.github.kyujin0911.pounter.feature.count.CountUiState>
+                val replacement = change(state.value.task!!)
+                state.value = state.value.copy(task = replacement)
+                repo.analysisResultGate!!.complete(
+                    Detection(listOf(Marker("late", .4f, .4f, .02f)), 1)
+                )
+                runCurrent()
+                assertEquals(replacement, vm.uiState.value.task)
+                assertEquals(0, repo.saveCount)
+            }
+        }
+
+    @Test
+    fun entryCancellationAfterCommittedSaveReopensWithoutDuplicateWrite() =
+        runTest(dispatcher) {
+            val repo = FakeRepository()
+            val handle = SavedStateHandle(mapOf("taskId" to "task"))
+            val vm = CountViewModel(repo, handle)
+            runCurrent()
+            repo.afterCommitGate = CompletableDeferred()
+            vm.dispatch(CountAction.Analyze)
+            runCurrent()
+            assertEquals(1L, repo.storedTask.revision)
+            assertNotNull(handle.get<String>("pendingSave"))
+            vm.viewModelScope.cancel()
+            repo.afterCommitGate!!.complete(Unit)
+            runCurrent()
+            val restored =
+                CountViewModel(
+                    repo,
+                    SavedStateHandle(
+                        mapOf(
+                            "taskId" to "task",
+                            "pendingSave" to handle.get<String>("pendingSave"),
+                        )
+                    ),
+                )
+            runCurrent()
+            assertFalse(restored.uiState.value.unsavedChanges)
+            restored.dispatch(CountAction.RetrySave)
+            runCurrent()
+            assertEquals(1, repo.saveCount)
+        }
+
+    @Test
+    fun waitingProcessingAndStaleCallbackAreGenerationBound() =
+        runTest(dispatcher) {
+            val repo = FakeRepository()
+            val vm = open(repo)
+            val gate = CompletableDeferred<Detection>()
+            repo.analysisResultGate = gate
+            vm.dispatch(CountAction.Analyze)
+            runCurrent()
+            assertTrue(vm.uiState.value.analysisWaiting)
+            val old = repo.stageCallback!!
+            old(AnalysisStage.PROCESSING)
+            runCurrent()
+            assertFalse(vm.uiState.value.analysisWaiting)
+            vm.dispatch(CountAction.CancelAnalysis)
+            runCurrent()
+            old(AnalysisStage.WAITING)
+            runCurrent()
+            assertFalse(vm.uiState.value.analysisWaiting)
+            repo.analysisResultGate = CompletableDeferred()
+            vm.dispatch(CountAction.Analyze)
+            runCurrent()
+            assertTrue(vm.uiState.value.analysisWaiting)
+            old(AnalysisStage.PROCESSING)
+            runCurrent()
+            assertTrue(vm.uiState.value.analysisWaiting)
+            gate.complete(Detection(emptyList(), 1))
+            repo.stageCallback!!(AnalysisStage.PROCESSING)
+            repo.analysisResultGate!!.complete(Detection(emptyList(), 1))
+            runCurrent()
+            assertFalse(vm.uiState.value.analysisWaiting)
+            assertEquals(1, repo.saveCount)
+        }
 
     @Test
     fun restoresPersistedTaskAndDoesNotPretendAnalysisIsRunning() =

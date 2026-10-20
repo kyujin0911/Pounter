@@ -18,6 +18,7 @@ data class CountUiState(
     val unavailable: Boolean = false,
     val deleted: Boolean = false,
     val unsavedChanges: Boolean = false,
+    val analysisWaiting: Boolean = false,
 ) {
     val isBusy: Boolean
         get() = operation != Operation.NONE

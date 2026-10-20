@@ -1,10 +1,12 @@
 package io.github.kyujin0911.pounter
 
+import io.github.kyujin0911.pounter.core.model.AnalysisMetadata
 import io.github.kyujin0911.pounter.core.model.CountTask
 import io.github.kyujin0911.pounter.core.model.Marker
 import io.github.kyujin0911.pounter.core.model.Region
 import io.github.kyujin0911.pounter.core.model.suppressConcentric
 import io.github.kyujin0911.pounter.feature.shared.PhotoGeometry
+import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -12,6 +14,38 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ModelTest {
+    @Test
+    fun legacyPendingSnapshotHasNoMetadata() {
+        val restored =
+            Json.decodeFromString<CountTask>(
+                """{"id":"old","photoName":"old.jpg","width":100,"height":80,"createdAt":1}"""
+            )
+        assertNull(restored.analysisMetadata)
+    }
+
+    @Test
+    fun resetClearsAnalysisMetadata() {
+        assertNull(
+            task()
+                .copy(analysisMetadata = AnalysisMetadata("synthetic-v1"))
+                .reset(Region())
+                .analysisMetadata
+        )
+    }
+
+    @Test
+    fun metadataRoundTripsWithoutChangingMarkerIds() {
+        val m = Marker("original", .4f, .5f, .02f)
+        val original =
+            task()
+                .copy(
+                    markers = listOf(m),
+                    automatic = listOf(m),
+                    analysisMetadata = AnalysisMetadata("synthetic-v1"),
+                )
+        assertEquals(original, Json.decodeFromString<CountTask>(Json.encodeToString(original)))
+    }
+
     private fun task() = CountTask("one", "one.jpg", 1000, 1500, 1L, analyzed = true)
 
     @Test

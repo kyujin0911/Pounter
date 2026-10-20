@@ -2,7 +2,7 @@ package io.github.kyujin0911.pounter.di
 
 import androidx.room.Room
 import io.github.kyujin0911.pounter.data.detector.PipeDetector
-import io.github.kyujin0911.pounter.data.detector.ValidationRequiredDetector
+import io.github.kyujin0911.pounter.data.detector.SupportedFacesPipeDetector
 import io.github.kyujin0911.pounter.data.local.database.CountDatabase
 import io.github.kyujin0911.pounter.data.local.photo.PhotoStore
 import io.github.kyujin0911.pounter.data.repository.CountRepository
@@ -21,7 +21,7 @@ fun appModule() = module {
     }
     single { get<CountDatabase>().tasks() }
     single { PhotoStore(androidContext()) }
-    single<PipeDetector> { ValidationRequiredDetector() }
+    single<PipeDetector> { SupportedFacesPipeDetector(get()) }
     single { LocalCountRepository(get(), get(), get()) } bind CountRepository::class
 
     viewModelOf(::HomeViewModel)

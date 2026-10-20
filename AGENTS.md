@@ -42,7 +42,7 @@ Navigation Compose의 타입 안전 경로로 목록·계수 작업·확정 기�
 
 한 묶음 촬영 조건을 유지한다. 배경 자르기는 선택 기능이며 여러 묶음 선택/분리가 필수라는 이전 제안은 대체됐다. 작은 파이프의 돌출·후퇴·겉보기 크기 차이는 검증 범위에 포함한다. 같은 평면·완벽한 원·규칙 격자를 가정하거나 숨은 개수를 추정하지 않는다.
 
-현재 앱은 검증 대기 검출기를 사용하고 OpenCV는 androidTest 전용인 이전 구현 상태다. 이것은 향후 복합 검출 구현을 영구 금지하는 규칙이 아니다. 별도 구현 요청 후 승인된 범위에서 검출 구현·런타임 의존성을 검토하고, 합격 검증 없이 지원 성능을 확정하지 않는다. 단순 Hough/합성 원 테스트를 현장 성능으로 확대하지 않는다.
+현재 앱은 `SupportedFacesPipeDetector`를 시험 도입 상태로 사용하고 OpenCV를 앱 런타임 의존성으로 포함한다. `DETECTOR_VALIDATED=false`이며 독립 실사진의 현장 인수는 미완료다. 후속 검출 구현·런타임 의존성 변경은 실제 사용자 요청 범위에서 검토하고, 합격 검증 없이 지원 성능을 확정하지 않는다. 단순 Hough/합성 원 테스트를 현장 성능으로 확대하지 않는다.
 
 ## Git 전략
 
@@ -61,6 +61,8 @@ Navigation Compose의 타입 안전 경로로 목록·계수 작업·확정 기�
 문서 작업: 변경된 문서 재독, 로컬 링크·결정 상태·정정 대체·날짜·미검증 표시 확인, git diff --check, 코드 변경 없음과 스테이징 파일 확인. 문서만 바뀌면 앱 빌드·에뮬레이터·설치를 불필요하게 재실행하지 않는다.
 
 구현을 요청받은 이후 관련 검증:
+
+빌드 전 SDK Manager → SDK Tools → Show Package Details → NDK (Side by side)에서 **27.3.13750724 (r27d)**를 설치한다. 기본 빌드는 프로젝트 SDK의 `ndk/27.3.13750724`를 사용한다. 다른 위치의 동일 버전은 사용자 `~/.gradle/gradle.properties`에 `edgeDrawingNdk=<NDK 경로>`를 지정하거나 명령에 `-PedgeDrawingNdk=<NDK 경로>`를 추가한다. 개인 절대 경로는 저장소에 커밋하지 않는다.
 
 ```sh
 ./gradlew spotlessCheck assembleDebug testDebugUnitTest lintDebug

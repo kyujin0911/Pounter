@@ -2,6 +2,7 @@ package io.github.kyujin0911.pounter.data.repository
 
 import android.net.Uri
 import io.github.kyujin0911.pounter.core.model.CountTask
+import io.github.kyujin0911.pounter.data.detector.AnalysisStage
 import io.github.kyujin0911.pounter.data.detector.Detection
 import kotlinx.coroutines.flow.Flow
 
@@ -19,4 +20,9 @@ interface CountRepository {
     suspend fun preview(task: CountTask): android.graphics.Bitmap?
 
     suspend fun detect(task: CountTask): Detection
+
+    suspend fun detect(task: CountTask, onStage: (AnalysisStage) -> Unit): Detection {
+        onStage(AnalysisStage.PROCESSING)
+        return detect(task)
+    }
 }

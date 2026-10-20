@@ -147,7 +147,8 @@ fun CountWorkScreen(
                         item {
                             ProgressCard(
                                 when (state.operation) {
-                                    Operation.ANALYZING -> "분석 중"
+                                    Operation.ANALYZING ->
+                                        if (state.analysisWaiting) "이전 분석을 정리하고 있습니다." else "분석 중"
                                     Operation.SAVING -> "변경 사항 저장 중"
                                     else -> "사진과 기록을 불러오는 중"
                                 },
@@ -234,7 +235,7 @@ fun CountWorkScreen(
                                         },
                                         enabled = canEdit,
                                     ) {
-                                        Text("자동 계수 상태")
+                                        Text(if (task.analyzed) "재분석" else "자동 분석")
                                     }
                                     if (!task.analyzed)
                                         Button(
@@ -336,9 +337,9 @@ fun CountWorkScreen(
                 )
             "reanalyze" ->
                 ConfirmDialog(
-                    "자동 계수 상태",
-                    "자동 계수는 정면 사진 검증 대기 중입니다. 현재 수동 표시는 유지됩니다.",
-                    "확인",
+                    "자동 재분석",
+                    "재분석하면 현재 자동 표시와 수동 보정이 새 결과로 교체됩니다. 계속할까요?",
+                    "재분석",
                     { dialog = null },
                     onConfirm = {
                         dispatch(CountAction.Analyze)
